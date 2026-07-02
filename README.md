@@ -16,19 +16,44 @@ code, requirements, architecture, or business decisions.
 - `schemas/review-verdict.schema.json` for strict reviewer verdicts.
 - `reports/agent-runs/_template/` for per-stage blackboard files.
 - `docs/` as canonical approved project document slots.
+- `harness-manifest.yaml` as the source of truth for sync ownership.
+- `scripts/install-harness.sh` and `scripts/update-project-harness.sh` for
+  first install and later upgrades.
 
 ## Install Into A Project
 
 From this repository:
 
 ```bash
-rsync -a \
-  AGENTS.md CLAUDE.md agents docs reports schemas workflows \
-  /path/to/your/project/
+scripts/install-harness.sh /path/to/your/project
 ```
 
-Then customize the target project's `agents/registry.yaml` adapter commands and
-fill approved project documents only through the workflow.
+The install script copies both `harness_owned` and `install_only` manifest
+entries. Existing files are skipped unless `--force` is passed.
+
+## Update An Existing Project
+
+From this repository:
+
+```bash
+scripts/update-project-harness.sh /path/to/your/project
+```
+
+The update script copies only `harness_owned` manifest entries. It does not
+overwrite project-owned PRD, architecture, roadmap, decision log, or project
+README files. Dirty target git worktrees are rejected unless `--allow-dirty` is
+passed.
+
+When running an installed project-local copy of the script, pass the template
+source explicitly:
+
+```bash
+scripts/update-project-harness.sh \
+  --source /path/to/ai_project_harness \
+  /path/to/your/project
+```
+
+Each install or update writes `.harness-version` in the target project.
 
 ## Canonical Project Paths
 

@@ -57,6 +57,25 @@ The Harness separates drafts from approved documents:
 No model should write raw drafts directly into canonical docs. The workflow
 promotes synthesized and user-approved decisions into `docs/`.
 
+## Sync Ownership
+
+`harness-manifest.yaml` is the source of truth for template synchronization:
+
+- `harness_owned`: copied on first install and later updates.
+- `install_only`: copied on first install only, then owned by the target project.
+- `project_owned_after_install`: never overwritten by Harness updates.
+- `generated_or_runtime`: created by scripts or workflow runs, not copied back
+  into the template repository.
+
+The update path is intentionally one-way:
+
+```text
+ai_project_harness -> target project
+```
+
+Project-specific PRDs, architecture decisions, roadmaps, and business documents
+must not be synced back into this template repository.
+
 ## Skill Registry
 
 `agents/registry.yaml` keeps stable local skill IDs. Each skill has one explicit
