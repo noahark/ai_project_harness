@@ -1,0 +1,108 @@
+# Agent Run Blackboard
+
+Each workflow stage gets one directory:
+
+```text
+reports/agent-runs/<stage-id>/
+  00-intake.md
+  00-task.md
+  10-design.md
+  11-adr.md
+  20-implementation.md
+  30-review-1.md
+  40-fix-report.md
+  50-review-2.md
+  60-test-output.txt
+  70-handoff.md
+  status.json
+```
+
+Use `_template/` when creating a new stage.
+
+Direction files are required only for milestone or user-requested direction
+freeze rounds:
+
+```text
+01-direction-codex.md
+02-direction-claude.md
+03-direction-glm52.md
+04-direction-kimi27.md
+05-direction-grok-build.md
+06-direction-synthesis.md
+```
+
+Drafts and intermediate outputs must remain in the stage directory. Approved
+project documents are promoted into fixed paths under `docs/`:
+
+```text
+docs/product/PRD.md
+docs/architecture/ARCHITECTURE.md
+docs/architecture/ADR/
+docs/development/DEVELOPMENT_GUIDE.md
+docs/planning/ROADMAP.md
+docs/planning/DECISIONS.md
+```
+
+## Ownership
+
+| File | Owner | Purpose |
+|---|---|---|
+| `00-intake.md` | Controller | User discussion summary, complexity classification, routing decision |
+| `00-task.md` | Designer | Scope, non-goals, acceptance criteria, file boundaries |
+| `01-direction-codex.md` | GPT/Codex | Conditional independent direction and requirement draft |
+| `02-direction-claude.md` | Claude | Independent direction and requirement draft |
+| `03-direction-glm52.md` | GLM5.2 | Independent direction and requirement draft |
+| `04-direction-kimi27.md` | Kimi 2.7 | Independent direction and requirement draft |
+| `05-direction-grok-build.md` | Grok Build | Independent direction and requirement draft |
+| `06-direction-synthesis.md` | GPT/Codex | Conditional final synthesized direction for user review |
+| `10-design.md` | Designer | Architecture, task split, risks, test strategy |
+| `11-adr.md` | Designer | Stage decision context, alternatives, tradeoffs, reviewer notes |
+| `20-implementation.md` | Implementer | Changed files, decisions, tests, remaining work |
+| `30-review-1.md` | Reviewer | First review findings and strict JSON verdict |
+| `40-fix-report.md` | Implementer | Fix mapping and retest evidence |
+| `50-review-2.md` | Final reviewer | Final raw-artifact review and strict JSON verdict |
+| `60-test-output.txt` | Controller | Raw or scrubbed command output |
+| `70-handoff.md` | Controller | Current facts, artifact index, next action |
+| `status.json` | Controller | Machine-readable stage status |
+
+Reviewers must not edit implementation reports. Implementers must not edit
+review files. Only the controller updates `status.json`.
+
+## Status Values
+
+Allowed values:
+
+```text
+planned
+designing
+implementing
+testing
+review_1
+fixing
+review_2
+accepted
+paused
+decision_models_exhausted
+development_models_exhausted
+stage_accepted_waiting_user
+human_escalation_required
+```
+
+Terminal stop reasons are limited to:
+
+- `decision_models_exhausted`
+- `development_models_exhausted`
+- `stage_accepted_waiting_user`
+- `human_escalation_required`
+
+## Evidence Rules
+
+- Store enough output to reproduce the conclusion.
+- Scrub credentials and tokens before committing reports.
+- Mark stale or skipped tests explicitly.
+- Record `base_sha`, `head_sha`, and `diff_fingerprint` before review.
+- `diff_fingerprint` is
+  `head_sha + ":" + sha256(git diff --binary <base_sha>..HEAD)`.
+- `review_1` and `review_2` verdicts are tracked separately.
+- A stage is not accepted until `status.json`, `70-handoff.md`, test output, and
+  schema-valid review verdicts agree.
