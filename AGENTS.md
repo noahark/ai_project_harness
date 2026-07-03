@@ -76,10 +76,29 @@ The controller must not:
 
 ### Designers
 
-Before a stage direction or requirement is frozen, GPT/Codex, Claude, GLM5.2,
-Kimi 2.7, and Grok Build each write their own direction draft. GPT/Codex then
-absorbs those raw drafts into a final synthesis for user review. Development
-does not begin until the user approves or edits the synthesis.
+Before a milestone direction or requirement set is frozen, the controller must
+run the registered direction panel for that round. The panel is declared in the
+workflow/registry or in the approved stage intake before drafting starts.
+When a registry panel key is derived from a stage id, replace hyphens with
+underscores; for example, `2026-07-initial-direction` maps to
+`2026_07_initial_direction`. The active panel key must be recorded in
+`00-intake.md` or `status.json` before synthesis.
+
+Each registered direction model writes one independent draft to:
+
+```text
+reports/agent-runs/<stage-id>/direction-drafts/<model-id>.md
+```
+
+If a registered model is unavailable or quota-exhausted, the stage must record
+`direction-drafts/<model-id>.unavailable.md` with the reason. Drafts preserve
+source model identity and must not be replaced by controller summaries.
+
+The configured direction synthesizer, normally GPT/Codex, reads the raw draft
+files and produces `06-direction-synthesis.md` for user review. The synthesizer
+may be one of the panel models, but its synthesis is not a substitute for a
+missing independent draft unless the user explicitly approves that shortcut.
+Development does not begin until the user approves or edits the synthesis.
 
 After user approval, the stage designer creates the next stage scope, file
 boundaries, non-goals, acceptance criteria, and test strategy.
@@ -124,6 +143,13 @@ Reviewer output must end with a strict JSON verdict matching
 review attempt is non-accepting and must route to retry, fallback, fix, or one
 of the allowed terminal stop reasons.
 
+If a reviewer returns `REWORK`, the verdict JSON must include
+`fix_start_prompt`: a ready-to-send repair prompt for the fix implementer. The
+prompt must preserve raw artifact paths, findings, required fixes, file
+boundaries, exact test commands, and acceptance criteria. The controller may add
+mechanical routing metadata, but must not hide or rewrite reviewer evidence when
+dispatching the fix.
+
 ## Hard Gates
 
 - Git is required. No git repository means no diff fingerprint and no review.
@@ -159,18 +185,20 @@ The intended loop is:
 
 1. After user requirement discussion, classify the work as `LOW`, `MEDIUM`,
    `HIGH`, or `MILESTONE`.
-2. Collect independent direction drafts from GPT/Codex, Claude, GLM5.2, Kimi
-   2.7, and Grok Build when a milestone direction or requirement set is being
-   frozen.
-3. Have GPT/Codex synthesize those drafts into a final direction and
-   requirements document for user review.
+2. Collect independent direction drafts from the registered direction panel for
+   the current round when a milestone direction or requirement set is being
+   frozen. Each available panel member must produce a raw draft, or the run must
+   record an explicit unavailable/quota note for that model.
+3. Have the configured direction synthesizer, normally GPT/Codex, synthesize the
+   raw drafts into a final direction and requirements document for user review.
 4. Wait for user approval before development starts.
 5. Design stage scope and acceptance criteria.
 6. Split implementation tasks.
 7. Implement the bounded task.
 8. Run deterministic tests, lint, type checks, or replay checks.
 9. Review raw artifacts.
-10. Fix if review returns `REWORK`.
+10. If review returns `REWORK`, use the reviewer-provided `fix_start_prompt`
+   to launch the fix task.
 11. Repeat until accepted, then stop and wait for the user to start the next
    multi-model direction round.
 
@@ -186,7 +214,8 @@ Complexity routing:
   approval; proceed to stage design.
 - `HIGH`: run direction panel by default, unless the user explicitly narrows the
   task and accepts a lightweight route.
-- `MILESTONE`: always run direction panel and GPT/Codex synthesis.
+- `MILESTONE`: always run the registered direction panel and configured
+  synthesis.
 
 ## Terminal Stop Reasons
 
