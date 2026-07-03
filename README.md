@@ -9,7 +9,7 @@ code, requirements, architecture, or business decisions.
 ## What This Provides
 
 - `AGENTS.md` as the top-level agent authority file.
-- `workflows/templates/feature-loop.yaml` as the stage workflow contract.
+- `workflows/templates/stage-delivery.yaml` as the stage workflow contract.
 - `agents/registry.yaml` for model adapters, provider identity, and skill
   routing.
 - `docs/model-adapters.md` for local CLI commands, model defaults, permission
@@ -79,7 +79,7 @@ docs/planning/DECISIONS.md
 ## Validate
 
 ```bash
-ruby -e 'require "yaml"; %w[agents/registry.yaml workflows/templates/feature-loop.yaml].each { |f| YAML.load_file(f); puts "YAML OK #{f}" }'
+ruby -e 'require "yaml"; %w[agents/registry.yaml workflows/templates/stage-delivery.yaml].each { |f| YAML.load_file(f); puts "YAML OK #{f}" }'
 ruby -e 'require "json"; %w[reports/agent-runs/_template/status.json schemas/review-verdict.schema.json].each { |f| JSON.parse(File.read(f)); puts "JSON OK #{f}" }'
 git diff --check
 ```

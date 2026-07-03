@@ -107,7 +107,7 @@ copy_path() {
 
   if [[ "$rel" == */ ]]; then
     mkdir -p "$dst"
-    rsync -a "$src" "$dst"
+    rsync -a --delete "$src" "$dst"
   else
     mkdir -p "$(dirname -- "$dst")"
     cp "$src" "$dst"
