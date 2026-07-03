@@ -144,6 +144,7 @@ inputs:
   workflow_docs:
     - AGENTS.md
     - agents/registry.yaml
+    - docs/model-adapters.md
     - agents/skills/UPSTREAM.md
     - schemas/review-verdict.schema.json
 
@@ -324,13 +325,15 @@ stages:
       - "Controller must locally commit reviewed artifacts before dispatch."
       - "status.json status must be review_1."
       - "Run scripts/validate-stage.py {{stage_id}} --phase pre-review and store output in 60-test-output.txt or an adjacent validation log."
+      - "Use base_sha..head_sha from status.json for the reviewed diff; do not use a moving HEAD when later Harness commits exist."
+      - "Check docs/model-adapters.md and agents/registry.yaml before declaring the reviewer unavailable."
     actor:
       provider: grok
       model: "grok-build"
     skill: code_reviewer
     mode: read_only
     adapter_requirements:
-      grok: "Use Grok Build in plan/read-only mode with a schema-bound custom prompt. If unavailable, fail closed and do not pass review-1."
+      grok: "Use Grok Build in plan/read-only mode with a schema-bound custom prompt. Verify with `grok models`; a controller session without a Grok tool is not enough to mark unavailable. If grok-build is unavailable or no schema-valid verdict arrives within 900 seconds, fail closed and do not pass review-1."
     requires_raw_artifacts:
       - "workflow YAML"
       - "00-task.md"
@@ -405,6 +408,8 @@ stages:
       - "Controller must locally commit reviewed artifacts before dispatch."
       - "status.json status must be review_2."
       - "Run scripts/validate-stage.py {{stage_id}} --phase pre-review and store output in 60-test-output.txt or an adjacent validation log."
+      - "Use base_sha..head_sha from status.json for the reviewed diff; do not use a moving HEAD when later Harness commits exist."
+      - "Check docs/model-adapters.md and agents/registry.yaml before declaring Codex or Claude unavailable."
     actor:
       primary: codex
       fallback: claude
@@ -417,8 +422,8 @@ stages:
     skill: reality_checker
     mode: read_only
     adapter_requirements:
-      codex: "Use read-only codex exec with a schema-bound custom prompt, not codex review."
-      claude: "Use read-only/plan Claude invocation with schema-bound custom prompt."
+      codex: "Use read-only codex exec with the configured GPT/Codex adapter default and a schema-bound custom prompt, not codex review."
+      claude: "Use read-only/plan Claude invocation with claude-fable-5 by default and a schema-bound custom prompt."
     requires:
       - "reviewer != designer"
       - "reviewer != implementer"

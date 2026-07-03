@@ -12,6 +12,8 @@ code, requirements, architecture, or business decisions.
 - `workflows/templates/feature-loop.yaml` as the stage workflow contract.
 - `agents/registry.yaml` for model adapters, provider identity, and skill
   routing.
+- `docs/model-adapters.md` for local CLI commands, model defaults, permission
+  modes, and adapter availability checks.
 - `agents/skills/` for local and vendored role skills.
 - `schemas/review-verdict.schema.json` for strict reviewer verdicts.
 - `reports/agent-runs/_template/` for per-stage blackboard files.
@@ -84,5 +86,6 @@ git diff --check
 
 ## Current Scope
 
-This is a document-level Harness. It does not yet include an executable runner or
-automatic model invocation.
+This is a document-level Harness plus executable validation gates. It records
+model adapter command templates, but it still does not include a full automatic
+multi-model runner.
