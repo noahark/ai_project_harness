@@ -302,6 +302,9 @@ stages:
       - "source files within task boundary"
       - "tests within task boundary"
       - "reports/agent-runs/{{stage_id}}/20-implementation.md"
+    routing_rules:
+      - "Apply status.json.model_routing stage-specific owner and exclusion rules before generic actor_pool selection."
+      - "A model listed in status.json.model_routing.excluded_for_core_work is ineligible for current-stage implementation even if it appears in this generic actor_pool."
     acceptance:
       - "Changed files match task boundaries or deviations are explained."
       - "Implementation report lists design decisions and tests run."
@@ -384,6 +387,9 @@ stages:
     skill: minimal_change_engineer
     mode: write_code
     max_rework: "{{guards.max_rework_per_stage}}"
+    routing_rules:
+      - "Apply status.json.model_routing stage-specific owner and exclusion rules before generic fix selection."
+      - "Do not send fixes to a model excluded from current-stage core work unless the user explicitly re-enables it."
     reads:
       - "AGENTS.md"
       - "agents/developer-discipline.md"

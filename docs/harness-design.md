@@ -150,6 +150,11 @@ uses Composer 2.5:
 grok --model grok-composer-2.5-fast
 ```
 
+The generic actor pool does not override a stage-specific routing decision. If
+`status.json.model_routing.excluded_for_core_work` excludes a model for the
+active stage, the controller must not dispatch implementation or fix work to
+that model unless the user explicitly re-enables it.
+
 Review routing is fixed:
 
 1. `review-1`: Grok Build with `code_reviewer`.

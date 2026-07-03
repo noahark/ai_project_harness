@@ -111,6 +111,11 @@ Implementers can be Kimi subagents, Claude-GLM, Grok, or another explicitly
 registered model. Implementers may write code only within the active task scope
 and file boundary.
 
+The generic workflow actor pool is only an eligibility list. Stage-specific
+owner and exclusion rules in `status.json.model_routing` must be applied before
+dispatch. A model excluded from current-stage core work must not receive
+implementation or fix tasks unless the user explicitly re-enables it.
+
 ### Reviewers
 
 Review-1 is assigned to Grok Build with the `code_reviewer` skill. Review-2 is
