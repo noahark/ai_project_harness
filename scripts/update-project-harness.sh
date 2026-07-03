@@ -107,7 +107,7 @@ copy_path() {
 
   if [[ "$rel" == */ ]]; then
     mkdir -p "$dst"
-    rsync -a --delete "$src" "$dst"
+    rsync -a "$src" "$dst"
   else
     mkdir -p "$(dirname -- "$dst")"
     cp "$src" "$dst"
@@ -140,6 +140,27 @@ VERSION
 while IFS= read -r rel; do
   copy_path "$rel"
 done < <(list_section harness_owned)
+
+delete_removed_path() {
+  local rel="$1"
+  local dst="$target_root/$rel"
+
+  if [ "$dry_run" = true ]; then
+    if [ -e "$dst" ]; then
+      echo "would remove obsolete Harness path: $rel"
+    fi
+    return 0
+  fi
+
+  if [ -e "$dst" ]; then
+    rm -rf "$dst"
+    echo "removed obsolete Harness path: $rel"
+  fi
+}
+
+while IFS= read -r rel; do
+  delete_removed_path "$rel"
+done < <(list_section removed_harness_owned)
 
 write_version
 
