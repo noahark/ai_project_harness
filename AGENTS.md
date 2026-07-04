@@ -219,6 +219,12 @@ dispatching the fix.
 - Model claims are not evidence. Evidence is raw diff, test output, artifacts,
   schema-valid verdicts, and committed repository state. Uncommitted state is
   allowed only for in-progress checkpoints before a review gate.
+- A contract amendment that modifies a previously frozen contract must carry
+  raw public samples that ground the change, landed under
+  `reports/api-samples/<stage>/`. Synthetic fixtures may supplement coverage
+  but never replace fact evidence. A stage that amends a contract from
+  synthetic fixtures alone must record the missing live sample as a follow-up
+  and re-enter review when the live sample is added.
 - Before dispatching `review-1`, dispatching `review-2`, or writing an accepted
   terminal state, run `scripts/validate-stage.py <stage-id> --phase <phase>` and
   preserve the output in the stage evidence.

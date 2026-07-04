@@ -110,6 +110,9 @@ Terminal stop reasons are limited to:
 - Store enough output to reproduce the conclusion.
 - Scrub credentials and tokens before committing reports.
 - Mark stale or skipped tests explicitly.
+- Contract amendments that change previously frozen API/data contracts must
+  include raw public samples under `reports/api-samples/<stage>/`. Synthetic
+  fixtures can cover edge cases but cannot replace fact evidence.
 - Before review, commit the stage artifacts locally. Local review commits are
   Harness evidence; they do not imply push, merge, deploy, or final acceptance.
 - Record `base_sha`, `head_sha`, and `diff_fingerprint` before review.

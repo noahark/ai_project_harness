@@ -312,6 +312,11 @@ Every review receives raw artifacts:
 The bookkeeper may provide an index of paths, but must not replace raw artifacts
 with a narrative summary.
 
+Contract amendments have an additional evidence rule: if a stage changes a
+previously frozen API or data contract, it must attach raw public samples under
+`reports/api-samples/<stage>/`. Synthetic fixtures may supplement coverage, but
+they cannot be the only fact basis for the amendment.
+
 ## Anti-Self-Review
 
 For a given stage:
