@@ -2,7 +2,7 @@
 """Validate Harness stage state before review or acceptance.
 
 This script is intentionally dependency-free. It turns the Harness evidence
-rules into an executable gate so model controllers cannot pass review by
+rules into an executable gate so stage operators cannot pass review by
 inventing status values or fingerprint protocols.
 """
 
@@ -224,6 +224,90 @@ def evidence_path_exists(root: Path, stage_dir: Path, value: Any) -> bool:
     return False
 
 
+def validate_parallel_mode(root: Path, stage_dir: Path, status_doc: dict[str, Any], phase: str) -> list[str]:
+    errors: list[str] = []
+
+    for task in status_doc.get("tasks", []) or []:
+        if isinstance(task, dict) and "embedded_reviews" in task:
+            errors.append("parallel-mode embedded_reviews must be top-level status.embedded_reviews, not tasks[].embedded_reviews")
+
+    parallel_mode = status_doc.get("parallel_mode", {})
+    if parallel_mode in (None, {}):
+        return errors
+    if not isinstance(parallel_mode, dict):
+        return ["parallel_mode must be an object when present"]
+    if not truthy(parallel_mode.get("enabled")):
+        embedded = status_doc.get("embedded_reviews", {})
+        if embedded not in ({}, None):
+            errors.append("embedded_reviews should be empty unless parallel_mode.enabled is true")
+        return errors
+
+    contract = parallel_mode.get("contract") or "docs/parallel-development-mode.md"
+    if not evidence_path_exists(root, stage_dir, contract):
+        errors.append(f"parallel_mode.contract does not exist: {contract}")
+    if not truthy(parallel_mode.get("r10_dispatch_tail_required")):
+        errors.append("parallel_mode.enabled requires r10_dispatch_tail_required=true")
+    if not truthy(parallel_mode.get("r4_diff_reconciliation_required")):
+        errors.append("parallel_mode.enabled requires r4_diff_reconciliation_required=true")
+
+    embedded = status_doc.get("embedded_reviews")
+    if not isinstance(embedded, dict):
+        errors.append("parallel_mode.enabled requires top-level embedded_reviews object")
+        return errors
+    if phase in {"pre-review", "pre-accept"} and not embedded:
+        errors.append("parallel_mode pre-review/pre-accept requires at least one embedded_reviews entry")
+
+    for key, entry in embedded.items():
+        prefix = f"embedded_reviews.{key}"
+        if not isinstance(entry, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+        rounds = entry.get("rounds")
+        if phase in {"pre-review", "pre-accept"} and (not isinstance(rounds, int) or rounds < 1):
+            errors.append(f"{prefix}.rounds must be an integer >= 1 before review")
+
+        for field in ("task_id", "scope", "implementer", "reviewer", "prompt_path"):
+            if field not in entry:
+                errors.append(f"{prefix} missing {field}")
+        if entry.get("prompt_path") and not evidence_path_exists(root, stage_dir, entry.get("prompt_path")):
+            errors.append(f"{prefix}.prompt_path does not exist: {entry.get('prompt_path')}")
+
+        artifacts = entry.get("round_artifacts", [])
+        if not isinstance(artifacts, list):
+            errors.append(f"{prefix}.round_artifacts must be a list")
+            continue
+        if isinstance(rounds, int) and rounds > 0 and len(artifacts) < rounds:
+            errors.append(f"{prefix}.round_artifacts has fewer entries than rounds")
+
+        for artifact in artifacts:
+            if not isinstance(artifact, dict):
+                errors.append(f"{prefix}.round_artifacts entries must be objects")
+                continue
+            round_no = artifact.get("round", "?")
+            for path_field in ("dispatch_path", "worktree_diff_path", "raw_output_path"):
+                path_value = artifact.get(path_field)
+                if not path_value:
+                    errors.append(f"{prefix}.round_artifacts[{round_no}] missing {path_field}")
+                elif not evidence_path_exists(root, stage_dir, path_value):
+                    errors.append(f"{prefix}.round_artifacts[{round_no}].{path_field} does not exist: {path_value}")
+            fix_report = artifact.get("fix_report_path")
+            if fix_report and not evidence_path_exists(root, stage_dir, fix_report):
+                errors.append(f"{prefix}.round_artifacts[{round_no}].fix_report_path does not exist: {fix_report}")
+
+        if phase == "pre-accept":
+            formal = entry.get("formal_review")
+            if not isinstance(formal, dict):
+                errors.append(f"{prefix}.formal_review is required before acceptance")
+            else:
+                for field in ("output", "base_sha", "head_sha", "diff_fingerprint", "verdict"):
+                    if not formal.get(field):
+                        errors.append(f"{prefix}.formal_review missing {field}")
+                if formal.get("output") and not evidence_path_exists(root, stage_dir, formal.get("output")):
+                    errors.append(f"{prefix}.formal_review.output does not exist: {formal.get('output')}")
+
+    return errors
+
+
 def validate_common(root: Path, stage_dir: Path, status_doc: dict[str, Any], phase: str) -> list[str]:
     errors: list[str] = []
     status = status_doc.get("status")
@@ -417,6 +501,7 @@ def main() -> int:
             except ValidationError as exc:
                 errors.append(str(exc))
         errors.extend(validate_common(root, stage_dir, status_doc, args.phase))
+        errors.extend(validate_parallel_mode(root, stage_dir, status_doc, args.phase))
         if args.phase in {"pre-review", "pre-accept"}:
             errors.extend(validate_required_files(stage_dir, status_doc, args.phase))
             errors.extend(validate_tasks(root, stage_dir, status_doc, args.task))
