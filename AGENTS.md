@@ -77,17 +77,27 @@ The bookkeeper may:
 
 - Read workflow YAML and stage files.
 - Create and update `reports/agent-runs/<stage>/`.
-- Dispatch work to implementation and review models.
+- Prepare dispatch packets, prompts, routing metadata, and handoff text for
+  implementation, review, and fix models.
 - Collect raw artifacts and verify that required evidence exists.
 - Update `status.json` and `70-handoff.md`.
 - Create local evidence commits before formal review gates.
 
 The bookkeeper must not:
 
+- Execute model-dispatch commands or invoke implementation/review/fix model
+  terminals.
 - Declare final acceptance.
 - Hide, summarize, or rewrite implementation evidence before review.
 - Feed reviewers only its own narrative summary.
 - Record credentials, tokens, cookies, private keys, or full environment dumps.
+
+Codex/GPT and Claude provider sessions may prepare model-facing dispatch
+artifacts, but must not execute them. The human operator executes dispatch by
+copying the prepared prompt or command into the selected model terminal and then
+records the resulting raw output or receipt under the stage evidence path. This
+applies to implementation, embedded pre-review, review-1, review-2, and fix
+dispatches.
 
 ### Designers
 
@@ -120,16 +130,28 @@ boundaries, non-goals, acceptance criteria, and test strategy.
 
 For `MEDIUM`, `HIGH`, and `MILESTONE` stages, a development breakdown author
 then narrows implementation boundaries before coding starts. The default
-breakdown author is Claude/Fable5 unless the registry or user selects another
-model. The breakdown must record owner split, allowed files, forbidden files,
-API/data contracts, test evidence, risk points, and review focus. This is design
+breakdown author is Claude provider, using Fable5 first and Opus4.8 after
+Fable5 quota exhaustion, unless the registry or user selects another model. The
+breakdown must record owner split, allowed files, forbidden files, API/data
+contracts, test evidence, risk points, and review focus. This is design
 involvement for review-2 disclosure purposes.
 
 ### Implementers
 
-Implementers can be Kimi subagents, Claude-GLM, Grok, or another explicitly
-registered model. Implementers may write code only within the active task scope
-and file boundary.
+Implementers are domain-routed by default: Claude-GLM owns backend, API
+contract, schema, normalization, external-sample, and data-semantics work; Kimi
+owns frontend, UI, client integration, and frontend test work. Codex/GPT is not
+an implementation or fix author in this Harness.
+
+For mixed tasks, route by dominant workload. If backend work is the large
+majority and frontend work is light integration or display wiring, the whole
+bounded task may be dispatched to Claude-GLM. If frontend work is the large
+majority and backend work is light endpoint or schema glue, the whole bounded
+task may be dispatched to Kimi. If backend and frontend work are both
+substantial and separable, split implementation by domain owner. Grok or another
+explicitly registered model may write code only when the user or stage
+explicitly enables it. Implementers may write code only within the active task
+scope and file boundary.
 
 The generic workflow actor pool is only an eligibility list. Stage-specific
 owner and exclusion rules in `status.json.model_routing` must be applied before
@@ -151,9 +173,11 @@ workflow stops with `decision_models_exhausted`.
 A reviewer must not be the implementer or fix author of the reviewed code. This
 is a hard ban with no disclosure override. A stage's final reviewer should
 preferably differ from its designer, direction synthesizer, or development
-breakdown author. Codex/GPT and Claude/Fable5 may perform final review despite
+breakdown author. Codex/GPT and Claude provider may perform final review despite
 prior design involvement only through the strong-reviewer disclosure override
-defined below. Reviewers are read-only. They must inspect raw artifacts:
+defined below; Claude uses Fable5 first and Opus4.8 after Fable5 quota
+exhaustion under the same Anthropic provider identity. Reviewers are read-only.
+They must inspect raw artifacts:
 
 - Workflow YAML and `00-task.md`.
 - `10-design.md`, `11-adr.md`, and `06-direction-synthesis.md` when present.
@@ -172,8 +196,10 @@ Self-review identity is checked at two granularities:
   that wrote delivery code in the reviewed stage.
 - `review-2` prefers provider-level isolation from the designer, direction
   synthesizer, and development breakdown author. If no unrelated decision model
-  is available after a runner-level check, Codex/GPT or Claude/Fable5 may review
-  with a recorded design-involvement disclosure.
+  is available after a runner-level check, Codex/GPT or Claude provider may
+  review with a recorded design-involvement disclosure. Claude uses Fable5 first
+  and Opus4.8 after Fable5 quota exhaustion under the same Anthropic provider
+  identity.
 
 Provider identity means model vendor, not CLI wrapper. `claude_glm` is
 `zhipu_glm`, not Anthropic, even though it is accessed through Claude Code.
@@ -247,9 +273,9 @@ dispatching the fix.
   state machine transitions fail closed and route to `human_escalation_required`
   unless the Harness schema, docs, and validator are updated first.
 - Final reviewer should differ from the stage designer, direction synthesizer,
-  or breakdown author. Codex/GPT and Claude/Fable5 may use the documented
+  or breakdown author. Codex/GPT and Claude provider may use the documented
   strong-reviewer disclosure override when no unrelated decision model is
-  available.
+  available; Claude uses Fable5 first and Opus4.8 after Fable5 quota exhaustion.
 - Reviewer must not be the implementer or fix author of the reviewed task. This
   has no override.
 - Reviewer input must be raw artifacts and file paths, not only bookkeeper
@@ -266,9 +292,12 @@ dispatching the fix.
 - Codex review nodes use `codex exec` in read-only mode with a custom prompt
   when strict JSON verdict output is required. Do not rely on `codex review`
   for schema-constrained verdicts.
-- Model dispatch must use `docs/model-adapters.md` and `agents/registry.yaml`.
-  A bookkeeper or implementation session lacking a built-in tool for a model is not sufficient to
-  mark that model unavailable; the runner-level adapter check must fail.
+- Model dispatch preparation must use `docs/model-adapters.md` and
+  `agents/registry.yaml`. Codex/GPT and Claude sessions must not execute model
+  dispatch; the human operator executes prepared dispatch packets in the target
+  model terminal. A bookkeeper or implementation session lacking a built-in tool
+  for a model is not sufficient to mark that model unavailable; the runner-level
+  adapter check must fail.
 - Review-2 fallback or strong-reviewer override is allowed only for quota,
   authentication, service availability, timeout, repeated invalid verdict JSON,
   or design-conflict ineligibility of the preferred unrelated reviewer. Do not
@@ -359,8 +388,6 @@ Other failures, including invalid JSON, failed tests, missing artifacts, or a
 single model failure, are routed to retry, fix, fallback, or evidence collection
 inside the active workflow before escalating to one of these terminal reasons.
 
-The first manual stage delivery run is intentionally deferred.
-
 ## Output Footer
 
 Every model-facing report, handoff, review narrative, and significant
@@ -400,7 +427,8 @@ uncommitted.
 
 `docs/model-adapters.md` is the local command runbook. It records the currently
 observed command forms for Codex, Claude, Claude-GLM, Grok, and Kimi, including
-read-only review, write-capable development, and explicit yolo/bypass modes.
+read-only review, write-capable development where applicable, and explicit
+yolo/bypass modes.
 
 Key reminders:
 
@@ -409,7 +437,8 @@ Key reminders:
   review nodes use read-only `codex exec` with the review prompt.
 - `codex -p` is a profile flag, not a prompt flag.
 - Claude review uses the configured Claude adapter model, currently
-  `claude-fable-5`, unless the registry or user changes it.
+  `claude-fable-5`; if Fable5 quota is exhausted, the configured backup model is
+  `opus4.8`, unless the registry or user changes it.
 - Review-1 uses Kimi and Claude-GLM as a cross-review pool. Grok development,
   when explicitly enabled, uses `grok-composer-2.5-fast`; Grok is not a default
   review gate.
