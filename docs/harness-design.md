@@ -487,12 +487,41 @@ waive the negative list, even with a record present:
 Any malformed record fails closed and invalidates every exception, so the
 downgrade path cannot fire on a bad record.
 
-For multi-task stages, `validate_task_coverage` adds chain-plus-prefix
-coverage: the task chain must tile `base..head`, each review's
-`diff_fingerprint` must match the recomputed prefix up to its
-`covers_through_task`, and every task beyond the covered prefix needs its own
-review record or a class-1 exception. Degenerate cases (no `tasks[]`, or a
-single task) preserve the current single-fingerprint behavior exactly.
+For multi-task stages, `validate_task_coverage` applies the D3-v2 waypoint
+coverage model (2026-07 red-gate-greening direct-fix; replaces the retired
+chain-plus-prefix model). For ordered waypoints `W0=base .. Wn=head` (each a
+valid commit), every adjacent segment `(Wi, Wi+1)` must be vouched by one of:
+
+1. **top-level review prefix match** — a `review_1`/`review_2`
+   `diff_fingerprint` equal to the recomputed `fingerprint(base..Wj)` vouches
+   every segment up to `Wj`. A full-range review (`j=n`) vouches all segments
+   and is the normal case; no explicit waypoints are then needed.
+2. **class-1 `authorized_exception`** (existing scope semantics):
+   `scope=review_k` vouches the segments after `review_k`'s matched prefix
+   (fail-closed: with no matched prefix the exception vouches nothing — an
+   exception extends a real review, it never fabricates coverage);
+   `scope=task:<id>` vouches the single segment ending at that task's
+   `head_sha`, which must be a declared waypoint.
+
+Waypoints come from `status.coverage_waypoints[]` (validated: >=2 commits,
+first==base, last==head, no duplicates) or default to `[base, head]`. A
+two-dot git diff is a tree snapshot delta, so segments tile `base..head` by
+construction; the only question is vouching, and every vouch is recomputed
+from git, never trusted from records. Retired in v2: the task chain check
+(structurally unsatisfiable with interleaved bookkeeper commits;
+`task.base/head` demoted to bookkeeping metadata), the task own-review
+coverage path (dev-coordinate recomputation could be impersonated by a
+dev-branch diff; zero production use), and `covers_through_task` (0/23 stages
+used it; the key is now ignored). Degenerate cases (no `tasks[]`, or a single
+task) preserve the single-fingerprint behavior exactly.
+
+**Fixture rule (structural anti-regression): any change to
+`scripts/validate-stage.py` must run `scripts/validate-all-stages.py` over all
+stages of every synced repo before review; the diff against the committed
+baseline may contain only pre-registered migrations.** The red-gate-greening
+arc is the evidence: on the D3-v2 change this rule caught the full real red
+population (11 stages) and would have made the earlier chain-model upgrade +
+ruling + repair stage unnecessary.
 
 ## Verdict Contract
 

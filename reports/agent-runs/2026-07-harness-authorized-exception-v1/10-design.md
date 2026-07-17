@@ -115,6 +115,21 @@ diff 代数):
 4. bookticker 表达：review-1 覆盖到 Task B（前缀 j=B）;Task C 要么补审、要么按用户已有
    授权记 class-1 例外——D-A 两条转绿路径都有表达。
 
+> 〔evolve-by-note 订正,2026-07-17,直修弧 red-gate-greening-v1〕**本节 v1 链式模型已被
+> D3-v2 路标模型取代**（裁决：funding_hedging `reports/agent-runs/2026-07-red-gate-greening-v1/
+> 06-direction-ruling-d3-fable5.md`；落地：同弧 T1）。v1 的两处假设被真实数据证伪/判险：
+> ①链式要求 `task[i+1].base==task[i].head` 在真实簿记下结构性不可满足（任务起点坐标 +
+> 任务间必然插入 bookkeeper 证据提交）——bookticker 与 funding-annualized-history 的
+> 真实记录均证伪；②task own-review 按任务本地 dev 坐标重算担保,存在 dev-diff 冒充集成
+> 段的口子,且 0/23 stage 生产使用。v2 不变量改为：**路标分段 + 逐段担保**（快照差天然
+> 无缝,唯一问题是每段是否被担保）——担保仅两条:top-level review 前缀命中（全量命中
+> j=n 即全段担保,无需 waypoints）与 class-1 例外（scope=review_k 盖该 review 命中前缀
+> 之后的尾随段,无命中则不担保任何东西;scope=task:<id> 盖 task.head 所在段,task.head
+> 须为已声明路标）。`coverage_waypoints[]` 可选、缺省 `[base,head]`;`covers_through_task`
+> 退役（0/23 使用,忽略保留兼容）;task.base/head 降级为簿记元数据。现行规范以
+> `docs/harness-design.md` D3 段与 `scripts/validate-stage.py:validate_task_coverage`
+> docstring 为准。
+
 ## 4. Validator 改动清单（小 diff）
 
 | 函数 | 改动 |
@@ -139,6 +154,14 @@ diff 代数):
   class-2（v1 不收）→ 其 pre-accept 这条**仍红**。**该 stage 已由用户接受覆盖合并,不再
   跑 pre-accept**,故维持"user-acceptance-override"记录即可,**不追求 pre-accept 全绿**。
   （订正 82 文件"两个都转绿"的表述。）
+
+> 〔evolve-by-note 订正,2026-07-17,直修弧 red-gate-greening-v1〕bookticker 的"真转绿"
+> 最终**不是由本 stage 的 D3-v1 达成**：D3-v1 链式检查使 bookticker 在 pre-accept 出现
+> 不可豁免红（`task chain broken` ×3）,转绿实际由直修弧 T1(D3-v2 路标模型,链式删除)
+> + T3(追加 class-1 例外 scope=review_1)完成——与本节设想的"class-1 例外 + D3 前缀"
+> 不同在:前缀担保实际经由 review-2 全量命中（j=n）达成,例外只降级 review-1 尾随断言。
+> docs-truth-sync 结论不变：维持 user-acceptance-override,在 fixture 台账登记为
+> known_red(class-2, pending user decision D-i)。
 
 ## 6. Bootstrapping（自指)
 
