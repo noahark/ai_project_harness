@@ -1,6 +1,6 @@
 {
   "stage_id": "2026-07-harness-authorized-exception-v1",
-  "status": "review_1",
+  "status": "review_2",
   "workflow": "stage-delivery",
   "stage_branch": {
     "name": "stage/2026-07-harness-authorized-exception-v1",
@@ -156,13 +156,13 @@
   "review_1": {
     "reviewer": "kimi",
     "provider": "moonshot",
-    "model": null,
-    "open_p0_p1": null,
-    "verdict": null,
-    "json_schema_valid": null,
-    "diff_fingerprint": null,
+    "model": "kimi-for-coding",
+    "open_p0_p1": [],
+    "verdict": "ACCEPT",
+    "json_schema_valid": true,
+    "diff_fingerprint": "8b650adfc4747ce6efe36ba7b78806d9b36023bf:29127111d6f38bbe9aedc5b956c13cef632c97da5148cb90859ddce741c2e5f0",
     "reviewer_prior_involvement": "none",
-    "fix_start_prompt_present": null,
+    "fix_start_prompt_present": false,
     "fix_start_prompt_source": null,
     "invalid_json_attempts": 0
   },
@@ -197,9 +197,9 @@
     "reason": null
   },
   "terminal_reason": null,
-  "next_action": "rework-2 fix delivered (claude_glm) + bookkeeper R4 (protected gates byte-identical; both round-2 probes verified fail-closed; watchdog excluded from base..head; git diff --check clean). New head 8b650ad, fingerprint recomputed. pre-review PASS pending. Operator dispatches round-3 review-1 (kimi); then fresh round-3 review-2 dispatch bound to 8b650ad -> review-2 (codex). rework_count=2/3 (last budget).",
-  "updated_at": "2026-07-17T10:15:00Z",
-  "current_phase": "rework-2-review-1-dispatch",
+  "next_action": "round-3 review-1 (kimi) ACCEPT (P0/P1/P2=0, P3=1; dual-path fingerprint match; #1/#2 closed, main gate zero-leakage, watchdog excluded). status review_1->review_2. Fresh round-3 review-2 dispatch (27-...) bound to head 8b650ad (resolves finding-4). Operator dispatches round-3 review-2 (codex). rework_count=2/3 (last budget) — an ACCEPT closes the stage; any REWORK hits max_rework -> human escalation.",
+  "updated_at": "2026-07-17T10:45:00Z",
+  "current_phase": "rework-2-review-2-dispatch",
   "model_routing": {
     "implementation_owner": "claude_glm",
     "review_1": "kimi",
