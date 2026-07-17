@@ -1,6 +1,6 @@
 {
   "stage_id": "2026-07-harness-authorized-exception-v1",
-  "status": "planned",
+  "status": "designing",
   "workflow": "stage-delivery",
   "stage_branch": {
     "name": "stage/2026-07-harness-authorized-exception-v1",
@@ -136,9 +136,9 @@
     "reason": null
   },
   "terminal_reason": null,
-  "next_action": "human-decides-D1-D2-D3-then-10-design",
-  "updated_at": "2026-07-16T17:02:53Z",
-  "current_phase": "intake",
+  "next_action": "user acks 10-design; then bookkeeper prepares claude_glm implementation dispatch (validator + _template + docs); review-1 kimi, review-2 codex",
+  "updated_at": "2026-07-16T17:15:00Z",
+  "current_phase": "design-done-awaiting-user-ack",
   "model_routing": {
     "implementation_owner": "claude_glm",
     "review_1": "kimi",
@@ -155,21 +155,21 @@
       "topic": "exemption whitelist vs any assertion",
       "recommendation": "whitelist (review_1_fingerprint_mismatch_under_waiver, review_2_content_clean_rework); never allow exempting fingerprint-recompute integrity",
       "owner": "user",
-      "status": "open"
+      "status": "resolved_by_fable5"
     },
     {
       "id": "D2",
       "topic": "authorized_exception field shape + who authorizes",
       "recommendation": "authorized_exceptions:[{assertion_id,reason,authorizer:user,evidence_file,at}]; human-only; evidence_file must exist (reuse :735-737 pattern); PASS-with-exception is explicitly annotated, never silent",
       "owner": "user",
-      "status": "open"
+      "status": "resolved_by_fable5"
     },
     {
       "id": "D3",
       "topic": "task-level fingerprint depth",
       "recommendation": "light: assert review-1/2 fingerprints belong to recorded tasks[] and their union covers base..head; escalate to full per-task diff split only if needed",
       "owner": "user",
-      "status": "open"
+      "status": "resolved_by_fable5"
     }
   ],
   "also_resolves_after_cp": [
@@ -179,8 +179,16 @@
   "bootstrapping_note": "Stage A modifies validate-stage.py but is itself gated by the pre-change validator on its branch; acceptance includes running the CHANGED script against this stage's own state (must still PASS) + zero regression on existing tests. Effect on funding_hedging is tested in the NEXT stage after manual cp.",
   "two_repo": "Developed in template repo ai_project_harness; harness_owned (validate-stage.py, schemas) cp'd DOWN to funding_hedging after acceptance (manual, per two-repo rule). Do not mix into a funding_hedging stage branch.",
   "current_inputs": [
-    "reports/agent-runs/2026-07-harness-authorized-exception-v1/00-intake.md",
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/00-task.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/10-design.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/11-adr.md",
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/70-handoff.md"
-  ]
+  ],
+  "design_decisions_resolution": {
+    "source": "funding_hedging/reports/agent-runs/2026-07-docs-truth-sync-v1/82-stage-a-design-rulings-fable5.md",
+    "D1": "whitelist in validator source (assertion_id enum); v1 = only class-1 review_fingerprint_trails_status; class-2 (exempt verdict==ACCEPT) NOT in v1; negative-list never-exemptable (fingerprint-recompute, clean worktree, reviewer identity :717-718, exception record's own evidence+integrity).",
+    "D2": "authorized_exceptions:[{assertion_id, scope, applies_to_fingerprint (harden 1: pinned to exact fingerprint, auto-expires on next fix), reason, authorizer=='user' literal (harden 2: evidence_file must contain verbatim user authorization), evidence_file (must exist, :735-737 pattern), at}]; PASS-with-exception is explicitly printed, never silent; no expiry field (pinning is inherently one-shot).",
+    "D3": "chain+prefix coverage: tasks[] head-to-tail linked (task0.base==status.base, task[i+1].base==task[i].head, last.head==status.head); review_k.diff_fingerprint == recomputed status.base..task[j].head prefix (j=covers_through_task); tasks after j need own review OR class-1 exception; degenerate single-task == current behavior; tasks[] absent == current single-fingerprint assertion."
+  },
+  "bookkeeper_correction_to_82": "82 D1 claims class-2 has zero instances; docs-truth-sync-v1 round-6 is one (F13/F14 resolved, only fixed bookkeeper F16/F17). Conclusion (class-2 out of v1) stands because docs-truth-sync already merged via user-acceptance-override and won't re-run pre-accept. Recorded as evolve-by-note in 10-design §1 and §5. Historical-green precise: bookticker goes truly green (class-1); docs-truth-sync stays user-acceptance-override (its review_2==REWORK is class-2/out-of-v1)."
 }
