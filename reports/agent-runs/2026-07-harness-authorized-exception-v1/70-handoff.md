@@ -5,7 +5,12 @@ it together with `status.json` and only the needed workflow section.
 
 ## Recovery Header
 
-- Active phase: `review_2`（round-3 review-1 Kimi ACCEPT,等派 round-3 review-2 Codex）
+- Active phase: `stage_accepted_waiting_user`（双评审 ACCEPT + pre-accept 门真绿,等用户明确接受）
+- **双评审 round-3 均 ACCEPT**:review-1 Kimi ACCEPT、review-2 Codex ACCEPT(P0/P1/P2=0,P3=1
+  非阻塞已处置)。**pre-accept 门 PASSED(真绿,无 override/无例外)**,head 8b650ad。
+- ⛔ **未经用户明确接受,禁止合并 main**。接受后:合并 main → 手动 cp harness_owned(validate-stage.py
+  + _template/status.json + AGENTS.md + docs/harness-design.md)到 funding_hedging → 下个 stage 实测
+  转绿两历史红门(bookticker class-1、docs-truth-sync 维持 user-override)。
 - **新 head `8b650adfc4747ce6efe36ba7b78806d9b36023bf`；指纹 `8b650ad…:29127111…`**(rework-2 后
   重算;看门狗已排除、diff --check 干净)。round-2 被审 head 是 c82fc2b,见 review_rounds[1]。
 - **rework_count=2/3**。round-2 review-2(Codex/gpt-5)=REWORK。4 P1:①task own-review 隔离信
@@ -80,6 +85,6 @@ it together with `status.json` and only the needed workflow section.
 当前 Session ID: unavailable (Claude Code session id 未暴露)
 Session ID 来源: unavailable
 原始输出路径: reports/agent-runs/2026-07-harness-authorized-exception-v1/70-handoff.md
-本地北京时间: 2026-07-17 17:20:00 CST
-下一步模型: codex（round-3 review-2 终审,经操作者派发）
-下一步任务: 终审新 head 8b650ad(#1/#2 是否闭合 + 全量回归 + 最后额度一次挖到底),写 50-review-2
+本地北京时间: 2026-07-17 18:20:00 CST
+下一步模型: human（用户明确接受 → bookkeeper 合并+cp）
+下一步任务: 用户接受后合并 stage→main、cp harness_owned 到 funding_hedging;否则保持 waiting_user
