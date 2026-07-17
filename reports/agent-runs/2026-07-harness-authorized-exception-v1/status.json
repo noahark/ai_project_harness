@@ -1,0 +1,264 @@
+{
+  "stage_id": "2026-07-harness-authorized-exception-v1",
+  "status": "stage_accepted_waiting_user",
+  "workflow": "stage-delivery",
+  "stage_branch": {
+    "name": "stage/2026-07-harness-authorized-exception-v1",
+    "created_from_main_sha": "00e25b4bb6e492ffbd974d1d7793ef10246fa6ad",
+    "created_at": "2026-07-16T17:02:53Z",
+    "merged_back_to_main": false,
+    "merged_back_sha": null,
+    "merge_strategy": null,
+    "abandoned_reason": null
+  },
+  "bookkeeper": {
+    "id": "claude-code-opus-4-8",
+    "provider": "anthropic",
+    "model": "claude-opus-4-8",
+    "session_role": "bookkeeper",
+    "also_implementer": false,
+    "dual_hat_disclosure": null
+  },
+  "parallel_mode": {
+    "enabled": false,
+    "contract": "docs/parallel-development-mode.md",
+    "r10_dispatch_tail_required": false,
+    "r4_diff_reconciliation_required": false
+  },
+  "embedded_reviews": {},
+  "designer": {
+    "provider": "anthropic",
+    "model": "claude-opus-4-8",
+    "role": "bookkeeper-as-designer",
+    "disclosure": "bookkeeper will write 10-design; disclose to review-2 as design involvement (not implementation/fix)."
+  },
+  "direction_synthesizer": {
+    "provider": "fable5",
+    "note": "Fable5 ruling covers direction (RC4 a+b, R1 mandate)."
+  },
+  "breakdown_author": {
+    "provider": "anthropic",
+    "model": "claude-opus-4-8",
+    "note": "bookkeeper; review-2 design-involvement disclosure"
+  },
+  "implementer": "claude_glm",
+  "implementers": [
+    {
+      "id": "claude_glm",
+      "provider": "zhipu_glm",
+      "domain": "validator/schema/harness-docs",
+      "dispatch_packet": "reports/agent-runs/2026-07-harness-authorized-exception-v1/15-dispatch-impl-claude-glm.md"
+    }
+  ],
+  "fix_authors": [
+    {
+      "id": "claude_glm",
+      "provider": "zhipu_glm",
+      "round": 1,
+      "dispatch_packet": "reports/agent-runs/2026-07-harness-authorized-exception-v1/35-dispatch-fix-1-claude-glm.md",
+      "scope": "review-2 findings 1/2/4 + P2 + finding-3 per Fable5 DIRECTION-SET (10-design 2.1)"
+    },
+    {
+      "id": "claude_glm",
+      "provider": "zhipu_glm",
+      "round": 2,
+      "dispatch_packet": "reports/agent-runs/2026-07-harness-authorized-exception-v1/37-dispatch-fix-2-claude-glm.md",
+      "scope": "round-2 code P1s: provider-authoritative task own-review isolation; evidence must be regular blob (reject tree/symlink/submodule); P3 EOF whitespace. bookkeeper handled watchdog(#3)/dispatch(#4)."
+    }
+  ],
+  "reviewer_1": {
+    "planned": "kimi",
+    "provider": "moonshot_kimi",
+    "rule": "cross-review isolation from claude_glm"
+  },
+  "reviewer_2": {
+    "planned": "codex",
+    "provider": "openai",
+    "note": "final gate; evidence-integrity trunk — rigorous"
+  },
+  "r10_checklists": {},
+  "tasks": [
+    {
+      "id": null,
+      "owner": null,
+      "reviewer": null,
+      "r10_checklist": null,
+      "base_sha": null,
+      "head_sha": null,
+      "diff_fingerprint": null,
+      "test_evidence": null,
+      "review_1": {
+        "reviewer": null,
+        "provider": null,
+        "model": null,
+        "verdict": null,
+        "json_schema_valid": null,
+        "diff_fingerprint": null
+      }
+    }
+  ],
+  "complexity": {
+    "classification": "MEDIUM",
+    "direction_panel_required": false,
+    "existing_synthesis_covers_task": true,
+    "user_approved_lightweight_route": true,
+    "lightweight_skip_allowed": true,
+    "rationale": [
+      "Direction covered by Fable5 ruling (docs-truth-sync-v1/81 Q4+F3+R1).",
+      "Touches the evidence-integrity trunk (fingerprint/validator core); review-2 must be rigorous, small diff.",
+      "Developed in the TEMPLATE repo (validate-stage.py + schemas are harness_owned); manual cp to funding_hedging after acceptance."
+    ]
+  },
+  "direction_panel": {
+    "panel_key": null,
+    "members": {}
+  },
+  "direction_synthesis": {
+    "provider": "codex",
+    "status": "not_started",
+    "user_approved": false
+  },
+  "base_sha": "00e25b4bb6e492ffbd974d1d7793ef10246fa6ad",
+  "head_sha": "8b650adfc4747ce6efe36ba7b78806d9b36023bf",
+  "diff_fingerprint": "8b650adfc4747ce6efe36ba7b78806d9b36023bf:29127111d6f38bbe9aedc5b956c13cef632c97da5148cb90859ddce741c2e5f0",
+  "changed_files": [
+    "scripts/validate-stage.py",
+    "reports/agent-runs/_template/status.json",
+    "AGENTS.md",
+    "docs/harness-design.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/20-implementation.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/40-fix-report.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/60-test-output.txt"
+  ],
+  "changed_files_note": "adapter-watchdog-runner.md deliberately NOT in base..head (review-2 round-2 finding-3 fixed): relocated to main d53abc5, git-rm'd from stage; verified git diff --quiet base..head clean.",
+  "tests": {
+    "status": "pass",
+    "commands": [
+      "python3 -m py_compile scripts/validate-stage.py",
+      "python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase checkpoint",
+      "python3 /tmp/rc4_*.py  # temporary construction+adversarial harness (25 cases); full source + output archived in 60-test-output.txt sections A-E.1"
+    ]
+  },
+  "review_rounds": [
+    {
+      "round": 1,
+      "review_1": {"reviewer": "kimi", "provider": "moonshot", "verdict": "ACCEPT", "artifact": "30-review-1.md@972fd06"},
+      "review_2": {"reviewer": "codex", "provider": "openai", "verdict": "REWORK", "artifact": "50-review-2.md@3ede818", "p1": 4, "p2": 2},
+      "reviewed_fingerprint": "941416345c92bf3c42556e0d9178f28e1384b4e6:5b28d88ce253d6d41f9c5841cfe51265a66e132c8fe7556d1177da4404b186f0"
+    },
+    {
+      "round": 2,
+      "review_1": {"reviewer": "kimi", "provider": "moonshot", "verdict": "ACCEPT", "artifact": "30-review-1.md@<round2>"},
+      "review_2": {"reviewer": "codex", "provider": "openai", "verdict": "REWORK", "artifact": "50-review-2.md", "p1": 4, "p3": 1},
+      "reviewed_fingerprint": "c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2"
+    },
+    {
+      "round": 3,
+      "review_1": {"reviewer": "kimi", "provider": "moonshot_kimi", "verdict": "ACCEPT"},
+      "review_2": {"reviewer": "codex", "provider": "openai", "verdict": "ACCEPT", "p0": 0, "p1": 0, "p2": 0, "p3": 1},
+      "reviewed_fingerprint": "8b650adfc4747ce6efe36ba7b78806d9b36023bf:29127111d6f38bbe9aedc5b956c13cef632c97da5148cb90859ddce741c2e5f0"
+    }
+  ],
+  "review_1": {
+    "reviewer": "kimi",
+    "provider": "moonshot_kimi",
+    "model": "kimi-for-coding",
+    "open_p0_p1": [],
+    "verdict": "ACCEPT",
+    "json_schema_valid": true,
+    "diff_fingerprint": "8b650adfc4747ce6efe36ba7b78806d9b36023bf:29127111d6f38bbe9aedc5b956c13cef632c97da5148cb90859ddce741c2e5f0",
+    "reviewer_prior_involvement": "none",
+    "fix_start_prompt_present": false,
+    "fix_start_prompt_source": null,
+    "invalid_json_attempts": 0
+  },
+  "review_2": {
+    "reviewer": "codex",
+    "provider": "openai",
+    "model": "gpt-5",
+    "primary_provider": "codex",
+    "fallback_provider": "claude",
+    "fallback_reason": null,
+    "reviewer_prior_involvement": "none",
+    "reviewer_prior_involvement_notes": null,
+    "unrelated_reviewer_unavailable_evidence": null,
+    "design_conflict_override": {
+      "used": false,
+      "reason": null,
+      "unrelated_reviewer_unavailable_evidence": null
+    },
+    "open_p0_p1": [],
+    "verdict": "ACCEPT",
+    "json_schema_valid": true,
+    "diff_fingerprint": "8b650adfc4747ce6efe36ba7b78806d9b36023bf:29127111d6f38bbe9aedc5b956c13cef632c97da5148cb90859ddce741c2e5f0",
+    "fix_start_prompt_present": false,
+    "fix_start_prompt_source": null,
+    "invalid_json_attempts": 0
+  },
+  "rework_count": 2,
+  "max_rework": 3,
+  "blockers": [],
+  "human_escalation": {
+    "required": false,
+    "reason": null
+  },
+  "terminal_reason": null,
+  "next_action": "BOTH reviews ACCEPT (round-3): review-1 kimi ACCEPT, review-2 codex ACCEPT (P0/P1/P2=0, P3=1 non-blocking provider-canonicalization, addressed by normalizing kimi provider->moonshot_kimi + deferring unknown-provider governance to a later stage). Bookkeeper ran pre-accept (see result). status=stage_accepted_waiting_user. AWAITING explicit user acceptance before merge to main + manual cp to funding_hedging. DO NOT merge without user acceptance.",
+  "updated_at": "2026-07-17T11:00:00Z",
+  "current_phase": "stage-accepted-waiting-user",
+  "model_routing": {
+    "implementation_owner": "claude_glm",
+    "review_1": "kimi",
+    "review_2_primary": "codex",
+    "parallel": false
+  },
+  "direction_basis": {
+    "fable5_ruling": "funding_hedging/reports/agent-runs/2026-07-docs-truth-sync-v1/81-harness-design-rootcause-review-fable5.md",
+    "rootcause": "funding_hedging/reports/agent-runs/2026-07-docs-truth-sync-v1/80-harness-design-rootcause.md"
+  },
+  "design_decisions_open": [
+    {
+      "id": "D1",
+      "topic": "exemption whitelist vs any assertion",
+      "recommendation": "whitelist (review_1_fingerprint_mismatch_under_waiver, review_2_content_clean_rework); never allow exempting fingerprint-recompute integrity",
+      "owner": "user",
+      "status": "resolved_by_fable5"
+    },
+    {
+      "id": "D2",
+      "topic": "authorized_exception field shape + who authorizes",
+      "recommendation": "authorized_exceptions:[{assertion_id,reason,authorizer:user,evidence_file,at}]; human-only; evidence_file must exist (reuse :735-737 pattern); PASS-with-exception is explicitly annotated, never silent",
+      "owner": "user",
+      "status": "resolved_by_fable5"
+    },
+    {
+      "id": "D3",
+      "topic": "task-level fingerprint depth",
+      "recommendation": "light: assert review-1/2 fingerprints belong to recorded tasks[] and their union covers base..head; escalate to full per-task diff split only if needed",
+      "owner": "user",
+      "status": "resolved_by_fable5"
+    }
+  ],
+  "also_resolves_after_cp": [
+    "funding_hedging bookticker-open-columns-v1 red gate (Task C fingerprint)",
+    "funding_hedging docs-truth-sync-v1 red gate (review-1 waiver + content-clean REWORK)"
+  ],
+  "bootstrapping_note": "Stage A modifies validate-stage.py but is itself gated by the pre-change validator on its branch; acceptance includes running the CHANGED script against this stage's own state (must still PASS) + zero regression on existing tests. Effect on funding_hedging is tested in the NEXT stage after manual cp.",
+  "two_repo": "Developed in template repo ai_project_harness; harness_owned (validate-stage.py, schemas) cp'd DOWN to funding_hedging after acceptance (manual, per two-repo rule). Do not mix into a funding_hedging stage branch.",
+  "current_inputs": [
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/00-task.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/10-design.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/11-adr.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/12-development-breakdown.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/20-implementation.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/60-test-output.txt",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/70-handoff.md"
+  ],
+  "design_decisions_resolution": {
+    "source": "funding_hedging/reports/agent-runs/2026-07-docs-truth-sync-v1/82-stage-a-design-rulings-fable5.md",
+    "D1": "whitelist in validator source (assertion_id enum); v1 = only class-1 review_fingerprint_trails_status; class-2 (exempt verdict==ACCEPT) NOT in v1; negative-list never-exemptable (fingerprint-recompute, clean worktree, reviewer identity :717-718, exception record's own evidence+integrity).",
+    "D2": "authorized_exceptions:[{assertion_id, scope, applies_to_fingerprint (harden 1: pinned to exact fingerprint, auto-expires on next fix), reason, authorizer=='user' literal (harden 2: evidence_file must contain verbatim user authorization), evidence_file (must exist, :735-737 pattern), at}]; PASS-with-exception is explicitly printed, never silent; no expiry field (pinning is inherently one-shot).",
+    "D3": "chain+prefix coverage: tasks[] head-to-tail linked (task0.base==status.base, task[i+1].base==task[i].head, last.head==status.head); review_k.diff_fingerprint == recomputed status.base..task[j].head prefix (j=covers_through_task); tasks after j need own review OR class-1 exception; degenerate single-task == current behavior; tasks[] absent == current single-fingerprint assertion."
+  },
+  "bookkeeper_correction_to_82": "82 D1 claims class-2 has zero instances; docs-truth-sync-v1 round-6 is one (F13/F14 resolved, only fixed bookkeeper F16/F17). Conclusion (class-2 out of v1) stands because docs-truth-sync already merged via user-acceptance-override and won't re-run pre-accept. Recorded as evolve-by-note in 10-design §1 and §5. Historical-green precise: bookticker goes truly green (class-1); docs-truth-sync stays user-acceptance-override (its review_2==REWORK is class-2/out-of-v1)."
+}
