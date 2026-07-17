@@ -5,7 +5,9 @@ it together with `status.json` and only the needed workflow section.
 
 ## Recovery Header
 
-- Active phase: `implementing`（rework-2;round-2 review-2 Codex REWORK 4 P1+P3,等定 watchdog 处置后派工）
+- Active phase: `review_1`（rework-2 fix 已交付+提交,等 pre-review + 派 round-3 review-1 Kimi）
+- **新 head `8b650adfc4747ce6efe36ba7b78806d9b36023bf`；指纹 `8b650ad…:29127111…`**(rework-2 后
+  重算;看门狗已排除、diff --check 干净)。round-2 被审 head 是 c82fc2b,见 review_rounds[1]。
 - **rework_count=2/3**。round-2 review-2(Codex/gpt-5)=REWORK。4 P1:①task own-review 隔离信
   reviewer 标签先于 provider(假绿自审)②git tree 冒充 evidence(非 blob 绕过)③(bookkeeper 错)
   无关的 adapter-watchdog-runner.md(469行)混进 base..head 且不在 changed_files ④(bookkeeper 错)
@@ -14,10 +16,12 @@ it together with `status.json` and only the needed workflow section.
 - 分工:①②→claude_glm 代码(37-dispatch-fix-2);③④→bookkeeper 已办:③看门狗迁 main
   `d53abc5` + 从 stage git-rm(base..head 已无净 diff);④26-dispatch 已加 SUPERSEDED 横幅,
   round-3 另出绑新 head 的专用包。
-- Next action: **操作者派 claude_glm 执行 `37-dispatch-fix-2-claude-glm.md`**(#1 provider 权威
-  隔离、#2 evidence 必须常规 blob、P3 空行)。修完 bookkeeper R4→提交→重算指纹(看门狗已排除)→
-  更新 changed_files→pre-review→round-3 review-1(Kimi)→绑新 head 的 round-3 review-2(Codex)。
-  **rework_count=2/3,最后额度**;fix 作者禁为 Codex。
+- rework-2 fix 已交付(claude_glm)+ bookkeeper R4:全局身份主门 4 函数逐字未动、两个 round-2
+  probe 独测均 fail-closed、合法跨 provider 不误杀、看门狗排除、diff --check 干净。
+- Next action: **操作者派 Kimi 执行 round-3 review-1**(被审新 head `8b650ad`;复算指纹须 ==
+  `8b650ad…:29127111…`;重点复核 #1 provider 权威隔离 + #2 tree/symlink/submodule 拒 + 看门狗
+  确已不在 diff + 零回归)。产出 30-review-1.md(覆盖)+ 写回 status.review_1。之后**绑新 head
+  的 round-3 review-2(Codex,另出专用包)**。**rework_count=2/3,最后额度**;fix 作者禁为 Codex。
 - Repo: **模板仓** `ai_project_harness`（不是 funding_hedging）。validate-stage.py +
   schemas 是 harness_owned，在此开发；接受后手动 cp 到 funding_hedging。
 - **新 head `c82fc2b05299e1edc1ad972b12e12d8597cfb394`；diff_fingerprint `c82fc2b…:f3d3fb33…`**
@@ -77,6 +81,6 @@ it together with `status.json` and only the needed workflow section.
 当前 Session ID: unavailable (Claude Code session id 未暴露)
 Session ID 来源: unavailable
 原始输出路径: reports/agent-runs/2026-07-harness-authorized-exception-v1/70-handoff.md
-本地北京时间: 2026-07-17 14:45:00 CST
-下一步模型: codex（round-2 review-2 终审,经操作者派发）
-下一步任务: 终审新 head c82fc2b(自己 4 P1 是否真堵死 + finding-3 evidence_sha256 是否等效 + R4),写 50-review-2
+本地北京时间: 2026-07-17 16:45:00 CST
+下一步模型: kimi（round-3 review-1,经操作者派发）
+下一步任务: 复审新 head 8b650ad(#1 provider 隔离 + #2 blob 类型 + 看门狗排除 + 零回归),复算指纹须 == 8b650ad…:29127111…,写 30-review-1

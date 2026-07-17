@@ -1,6 +1,6 @@
 {
   "stage_id": "2026-07-harness-authorized-exception-v1",
-  "status": "implementing",
+  "status": "review_1",
   "workflow": "stage-delivery",
   "stage_branch": {
     "name": "stage/2026-07-harness-authorized-exception-v1",
@@ -119,8 +119,8 @@
     "user_approved": false
   },
   "base_sha": "00e25b4bb6e492ffbd974d1d7793ef10246fa6ad",
-  "head_sha": "c82fc2b05299e1edc1ad972b12e12d8597cfb394",
-  "diff_fingerprint": "c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2",
+  "head_sha": "8b650adfc4747ce6efe36ba7b78806d9b36023bf",
+  "diff_fingerprint": "8b650adfc4747ce6efe36ba7b78806d9b36023bf:29127111d6f38bbe9aedc5b956c13cef632c97da5148cb90859ddce741c2e5f0",
   "changed_files": [
     "scripts/validate-stage.py",
     "reports/agent-runs/_template/status.json",
@@ -130,6 +130,7 @@
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/40-fix-report.md",
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/60-test-output.txt"
   ],
+  "changed_files_note": "adapter-watchdog-runner.md deliberately NOT in base..head (review-2 round-2 finding-3 fixed): relocated to main d53abc5, git-rm'd from stage; verified git diff --quiet base..head clean.",
   "tests": {
     "status": "pass",
     "commands": [
@@ -155,13 +156,13 @@
   "review_1": {
     "reviewer": "kimi",
     "provider": "moonshot",
-    "model": "kimi-for-coding",
-    "open_p0_p1": [],
-    "verdict": "ACCEPT",
-    "json_schema_valid": true,
-    "diff_fingerprint": "c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2",
+    "model": null,
+    "open_p0_p1": null,
+    "verdict": null,
+    "json_schema_valid": null,
+    "diff_fingerprint": null,
     "reviewer_prior_involvement": "none",
-    "fix_start_prompt_present": false,
+    "fix_start_prompt_present": null,
     "fix_start_prompt_source": null,
     "invalid_json_attempts": 0
   },
@@ -180,17 +181,12 @@
       "reason": null,
       "unrelated_reviewer_unavailable_evidence": null
     },
-    "open_p0_p1": [
-      "P1: task own-review isolation trusts reviewer label before declared provider (false-green self-review)",
-      "P1: committed git tree accepted as non-empty evidence (non-blob bypass)",
-      "P1 (bookkeeper): unrelated 469-line adapter-watchdog-runner.md in stage base..head diff + absent from changed_files",
-      "P1 (bookkeeper): 26-dispatch-review-2 still bound to round-1 head/fingerprint"
-    ],
-    "verdict": "REWORK",
-    "json_schema_valid": true,
-    "diff_fingerprint": "c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2",
-    "fix_start_prompt_present": true,
-    "fix_start_prompt_source": "reports/agent-runs/2026-07-harness-authorized-exception-v1/50-review-2.md (final verdict JSON)",
+    "open_p0_p1": null,
+    "verdict": null,
+    "json_schema_valid": null,
+    "diff_fingerprint": null,
+    "fix_start_prompt_present": null,
+    "fix_start_prompt_source": null,
     "invalid_json_attempts": 0
   },
   "rework_count": 2,
@@ -201,9 +197,9 @@
     "reason": null
   },
   "terminal_reason": null,
-  "next_action": "rework-2: bookkeeper resolved #3 (watchdog moved to main d53abc5, git-rm'd from stage; base..head clean) + #4 (26-dispatch marked superseded). Operator dispatches claude_glm rework-2 fix via 37-dispatch-fix-2-claude-glm.md (code P1 #1 provider-authoritative task own-review isolation, #2 evidence-must-be-blob, P3 whitespace). Then bookkeeper R4 -> commit -> recompute fingerprint (watchdog now excluded) -> update changed_files -> pre-review -> round-3 review-1 (kimi) -> fresh round-3 review-2 dispatch bound to new head -> review-2 (codex).",
-  "updated_at": "2026-07-17T09:30:00Z",
-  "current_phase": "rework-2-fix-dispatch",
+  "next_action": "rework-2 fix delivered (claude_glm) + bookkeeper R4 (protected gates byte-identical; both round-2 probes verified fail-closed; watchdog excluded from base..head; git diff --check clean). New head 8b650ad, fingerprint recomputed. pre-review PASS pending. Operator dispatches round-3 review-1 (kimi); then fresh round-3 review-2 dispatch bound to 8b650ad -> review-2 (codex). rework_count=2/3 (last budget).",
+  "updated_at": "2026-07-17T10:15:00Z",
+  "current_phase": "rework-2-review-1-dispatch",
   "model_routing": {
     "implementation_owner": "claude_glm",
     "review_1": "kimi",
