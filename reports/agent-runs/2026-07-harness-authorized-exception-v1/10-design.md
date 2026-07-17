@@ -48,23 +48,56 @@
   "assertion_id": "review_fingerprint_trails_status",   // 必命中 validator 枚举
   "scope": "review_1",                                   // 断言实例(哪道 review / 哪个 task)
   "applies_to_fingerprint": "<head_sha>:<sha256>",       // 硬化1:钉死到具体指纹
-  "reason": "…",
+  "reason": "…",                                         // 非空(rework-1 校验)
   "authorizer": "user",                                  // 字面量,仅此值合法
-  "evidence_file": "reports/agent-runs/<stage>/…",       // 必须存在(:735-737 模式)
-  "at": "ISO-8601"
+  "evidence_file": "reports/agent-runs/<stage>/…",       // 仓内相对、已提交(rework-1)
+  "evidence_sha256": "<hex>",                            // 提交 blob 的 sha256(rework-1 新增)
+  "at": "ISO-8601"                                        // 可解析 ISO-8601(rework-1 校验)
 }]
 ```
 
 - **硬化1（钉指纹）**：例外只对 `applies_to_fingerprint` 那次 diff 生效。再来一轮 fix、
   指纹一变,例外**自动失效、门重新变红**,必须重新授权。防止"一次豁免静默盖住后续所有
   轮次"——否则把 RC4 的永久假红换成更糟的永久假绿。
-- **硬化2（结构性防自授）**：`authorizer` 只接受字面量 `"user"`;`evidence_file` 内容必须
-  含用户授权原文(沿用 `status.user_authorizations[].instruction_verbatim` 惯例)。模型
-  不能自授靠的是"授权原文只能来自用户消息"这一结构,不靠自觉。
+- **硬化2（防自授,rework-1 按 Fable5 finding-3 裁决重写；见 §2.1）**：把"防自授"从
+  **不可能性声称**降级为**防静默 + 强制人核**两层。`authorizer=="user"` 字面量、钉指纹、
+  **仓内已提交且 digest 封存**的 evidence,共同保证自授**无法静默发生**(伪造豁免必须把
+  伪造文本提交进受审 git 历史、并在 PASS-with-exception 横幅亮明,留下可追溯痕迹);但代码
+  **不能证明** evidence 文本源自人类(模型能写任何字节)。「不能自授」的**最终保证**是
+  pre-accept 放行任何例外前**操作者人工核对 evidence 原文**(横幅即人核触发点)。人核是
+  **流程义务**(workflow checklist + handoff),validator 无法强制人读——与 80 报告 RC 方法论
+  一致,不装成机械门。〔订正:旧文"授权原文只能来自用户消息这一结构,不靠自觉"是把惯例说成
+  代码强制,出自 82/D2 的过度声称,Fable5 已认账修正。〕
 - **放行绝不静默**：validator stdout 打印
   `PASS (N authorized exceptions applied: <assertion_id@scope> …)`;exit 0,但 pre-accept
   证据(62-)必须含该行;例外同时列进 70-handoff Recovery Header。
 - 无 expiry 字段:钉指纹天然一次性。
+
+## 2.1 finding-3 授权来源机械硬化（rework-1，Fable5 DIRECTION-SET，见 56 文件）
+
+review-2 Codex 判 finding-3(P1):实现的 evidence 校验只查存在+非空,未兑现 D2「evidence
+含真实授权」的承诺。Fable5 裁 **A 档（务实硬化）+ C 级边界**,本 rework 只做四件机械可靠事,
+**不做 B**(结构化 user_authorizations 链 / runner receipt 依赖仍 DRAFT 的看门狗基建,在未建
+基建上立门是已判反模式):
+
+1. **仓内相对路径 + 逃逸防护**：`evidence_file` 拒绝绝对路径;resolve 后必须仍在 repo root
+   内(防 `../` 逃逸)。删 `_evidence_file_nonempty` `:819` 的 absolute-candidate 分支。
+   **不改共享的 `evidence_path_exists`(:363)**——RC4 committed-blob 逻辑自包含,不影响别的
+   caller。
+2. **必须已提交(git-tracked)**：validator 读**提交内容**(`git show <验证时 HEAD>:<path>`),
+   不是工作树文件;杜绝 untracked 文件充当证据、堵非 clean 阶段口子。
+3. **digest 封存(对 Codex fix 第 3 条的必要修正)**：例外记录新增 `evidence_sha256`,
+   validator 重算提交 blob 的 sha256 比对。**不采用** Codex 原文的 blob@`status.head_sha`
+   形态——它与真实流程**死锁**:class-1 授权须引用新指纹,新指纹只在 head commit 之后存在,
+   故授权证据必然 **post-head** 提交(bookticker 事后补录、docs-truth-sync 的 waiver 落在 fix
+   head 之后的簿记提交,两个真实实例在 blob@head_sha 下都无法合法转绿)。digest-in-record +
+   git-tracked 达成同等防篡改,无顺序死锁。
+4. **task 消费端按 `assertion_id == review_fingerprint_trails_status` 显式过滤**(与 finding-4
+   同批)。
+
+**拆分(不阻塞本 stage)**:① `user_authorizations[]` 结构化 schema + 例外记录引用链(增加
+可审计导航,非来源证明,单独设计);② runner receipt(看门狗基建离 DRAFT 后作为"人核之上
+第二保证",Q2 措辞已预留接口)。
 
 ## 3. D3 — 分任务指纹覆盖（链式 + 前缀,轻量）
 
@@ -123,6 +156,15 @@ pre-review/pre-accept 仍符合预期 + 现有行为零回归**。对 funding_he
    接不上)→ FAIL;单任务/tasks 缺省 → 行为同现行。
 4. 现有 validator 测试零回归;改后脚本对本 stage 自身 pre-accept 符合预期。
 5. `AGENTS.md`/`harness-design.md` 已同步描述例外机制 + negative list。
+6. **rework-1 finding-3 对抗清单**(§2.1):evidence_file 绝对路径 / `../` 逃逸 / untracked /
+   `evidence_sha256` 不匹配 → 仍 FAIL;**post-head 但 tracked+digest 匹配 = 合法 PASS**
+   (取代旧"post-head fails")。缺 `reason` / `at` 非 ISO-8601 → FAIL。
+7. **rework-1 finding-1/2/4 对抗清单**:仅靠 task 例外 PASS 时横幅**打印全部** applied
+   `assertion_id@scope`(含 task scope);伪造 `{"review_1":{"diff_fingerprint":"x"}}` 冒充
+   task own-review → FAIL(要求完整合规 ACCEPT + 跨 provider + 指纹==task 指纹);裸 `<id>`
+   scope / 重复或缺失 task id / 一个例外覆盖两 task → FAIL。
+8. **Q2 文档**:`AGENTS.md`/`harness-design.md`/本设计 §2 的"防自授"表述已改为防静默+强制
+   人核两层,并标注人核是流程义务(validator 不强制)。
 
 ## 8. Routing
 

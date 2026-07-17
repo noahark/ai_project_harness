@@ -16,12 +16,15 @@ it together with `status.json` and only the needed workflow section.
   ②任意非空串冒充 task own-review(D3 假绿)③授权来源未认证/未钉 head_sha,文档"模型不能
   自授"表述不成立 ④task scope 歧义(task:<id> 与裸 <id>)+id 不唯一。P2:reason/at 未校验、
   模板 tasks[] 注解键。
-- **待决(user direction)**:finding-3 的硬化深度与 Fable5 D2 裁决相交——是走"务实硬化
-  (repo-relative+committed+head_sha 封存+改文档,人核为最终保证)"还是升级 Fable5。
-  findings 1/2/4 + P2 是明确代码修复,无争议。
-- Next action: 定 finding-3 范围 → bookkeeper 出 fix dispatch(基于 Codex fix_start_prompt)
-  → 派 **claude_glm**(zhipu_glm,provider 隔离 OK)→ 修复后**重新进 review-1(Kimi)→
-  review-2(Codex)**。fix 作者禁为 Codex。
+- **finding-3 已 Fable5 DIRECTION-SET(56 文件)**:A 档务实硬化——①仓内相对+防逃逸(删 :819
+  绝对分支)②git-tracked 读提交 blob ③记录加 `evidence_sha256`、validator 重算 blob 比对
+  (**不用 blob@head_sha,会与 post-head 授权死锁**)④task 按 assertion_id 过滤。Q2 文档必改
+  (防静默+强制人核两层,人核是流程义务)。不做 B(receipt 依赖 DRAFT 基建)。10-design §2/§2.1/§7
+  已更。拆分:user_authorizations 结构化 + runner receipt → 后续 stage。
+- Next action: **操作者派 claude_glm 执行 `35-dispatch-fix-1-claude-glm.md`**(fix 作者
+  zhipu_glm,provider 隔离 OK);产出 40-fix-report.md + 追加 60-test-output.txt(别删原证据);
+  bookkeeper R4 对账→提交→重算指纹→pre-review→**重进 review-1(Kimi)→ review-2(Codex)**。
+  fix 作者禁为 Codex。
 - 设计已定(Fable5 D1/D2/D3,见 `10-design.md`)：D1 白名单源码枚举、v1 只收 class-1、
   negative list 五项不可豁免;D2 钉指纹自动失效 + authorizer=="user" 硬化 + 非静默;
   D3 链式+前缀、单任务退化。
@@ -59,6 +62,6 @@ it together with `status.json` and only the needed workflow section.
 当前 Session ID: unavailable (Claude Code session id 未暴露)
 Session ID 来源: unavailable
 原始输出路径: reports/agent-runs/2026-07-harness-authorized-exception-v1/70-handoff.md
-本地北京时间: 2026-07-17 12:35:00 CST
-下一步模型: human（定 finding-3 fix 范围）→ claude_glm（rework fix）
-下一步任务: 拍板 finding-3 硬化深度;据 Codex fix_start_prompt 出 fix dispatch,派 claude_glm 修 4 P1+2 P2
+本地北京时间: 2026-07-17 13:30:00 CST
+下一步模型: claude_glm（rework-1 fix,经操作者派发）
+下一步任务: 执行 35-dispatch-fix-1-claude-glm.md 修 4 P1+2 P2(finding-3 按 Fable5 A 档),写 40-fix-report + 追加 60-test-output

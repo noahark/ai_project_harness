@@ -50,7 +50,15 @@
       "dispatch_packet": "reports/agent-runs/2026-07-harness-authorized-exception-v1/15-dispatch-impl-claude-glm.md"
     }
   ],
-  "fix_authors": [],
+  "fix_authors": [
+    {
+      "id": "claude_glm",
+      "provider": "zhipu_glm",
+      "round": 1,
+      "dispatch_packet": "reports/agent-runs/2026-07-harness-authorized-exception-v1/35-dispatch-fix-1-claude-glm.md",
+      "scope": "review-2 findings 1/2/4 + P2 + finding-3 per Fable5 DIRECTION-SET (10-design 2.1)"
+    }
+  ],
   "reviewer_1": {
     "planned": "kimi",
     "provider": "moonshot",
@@ -171,9 +179,9 @@
     "reason": null
   },
   "terminal_reason": null,
-  "next_action": "review-2 (codex) REWORK recorded (4 P1 + 2 P2, verified real by bookkeeper); rework_count=1/3. Finding-3 (auth provenance hardening) intersects Fable5 D2 ruling -> pending user direction on fix scope before dispatching claude_glm fix. Findings 1/2/4 + P2 are clear code fixes.",
-  "updated_at": "2026-07-17T04:35:00Z",
-  "current_phase": "rework-1-triage",
+  "next_action": "Fable5 DIRECTION-SET on finding-3 (A pragmatic + evidence_sha256 mechanism, NOT blob@head_sha; doc claim corrected). 10-design D2/2.1 updated. Operator dispatches claude_glm rework-1 fix via 35-dispatch-fix-1-claude-glm.md; then re-enter review-1 (kimi) -> review-2 (codex).",
+  "updated_at": "2026-07-17T05:30:00Z",
+  "current_phase": "rework-1-fix-dispatch",
   "model_routing": {
     "implementation_owner": "claude_glm",
     "review_1": "kimi",
