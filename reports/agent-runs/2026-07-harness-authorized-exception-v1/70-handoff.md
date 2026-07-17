@@ -5,12 +5,17 @@ it together with `status.json` and only the needed workflow section.
 
 ## Recovery Header
 
-- Active phase: `stage_accepted_waiting_user`（双评审 ACCEPT + pre-accept 门真绿,等用户明确接受）
-- **双评审 round-3 均 ACCEPT**:review-1 Kimi ACCEPT、review-2 Codex ACCEPT(P0/P1/P2=0,P3=1
-  非阻塞已处置)。**pre-accept 门 PASSED(真绿,无 override/无例外)**,head 8b650ad。
-- ⛔ **未经用户明确接受,禁止合并 main**。接受后:合并 main → 手动 cp harness_owned(validate-stage.py
-  + _template/status.json + AGENTS.md + docs/harness-design.md)到 funding_hedging → 下个 stage 实测
-  转绿两历史红门(bookticker class-1、docs-truth-sync 维持 user-override)。
+- Active phase: `accepted`（终态）。2026-07-17 由直修弧 2026-07-red-gate-greening-v1 T0 收口：
+  status 与既有合并事实对齐（合并提交 `9ea36ab` no-ff、记账提交 `cdef1ee`、下行 cp 到
+  funding_hedging `e71164c`→`9d28ec4`）。**用户接受原文在已提交记录中查无，证据缺口已
+  如实登记于 `status.user_acceptance.verbatim_evidence_gap`，未补造。**
+- 双评审 round-3 均 ACCEPT：review-1 Kimi ACCEPT、review-2 Codex ACCEPT(P0/P1/P2=0,P3=1
+  非阻塞已处置)。pre-accept 门 PASSED(真绿,无 override/无例外),head 8b650ad。
+- 历史记录（合并前快照,保留不改写）:⛔ 未经用户明确接受,禁止合并 main。接受后:合并 main → 手动
+  cp harness_owned(validate-stage.py + _template/status.json + AGENTS.md + docs/harness-design.md)
+  到 funding_hedging → 下个 stage 实测转绿两历史红门(bookticker class-1、docs-truth-sync
+  维持 user-override)。〔进展注记:合并与 cp 已完成;bookticker 转绿由直修弧 T1+T3 承接,
+  docs-truth-sync 维持 known_red(class-2, D-i pending)。〕
 - **新 head `8b650adfc4747ce6efe36ba7b78806d9b36023bf`；指纹 `8b650ad…:29127111…`**(rework-2 后
   重算;看门狗已排除、diff --check 干净)。round-2 被审 head 是 c82fc2b,见 review_rounds[1]。
 - **rework_count=2/3**。round-2 review-2(Codex/gpt-5)=REWORK。4 P1:①task own-review 隔离信
@@ -63,8 +68,8 @@ it together with `status.json` and only the needed workflow section.
 ## Current State
 
 - Stage: `2026-07-harness-authorized-exception-v1`（Fable5 的 Stage A）
-- Status: `planned`
-- Branch: `stage/2026-07-harness-authorized-exception-v1`（模板仓，base `00e25b4`）
+- Status: `accepted`（已合并模板仓 main `9ea36ab`，记账 `cdef1ee`；T0 收口 2026-07-17）
+- Branch: `stage/2026-07-harness-authorized-exception-v1`（已合并，保留）
 - Complexity: MEDIUM，lightweight route（方向 Fable5 覆盖）
 
 ## Open Decisions（用户）
@@ -85,6 +90,6 @@ it together with `status.json` and only the needed workflow section.
 当前 Session ID: unavailable (Claude Code session id 未暴露)
 Session ID 来源: unavailable
 原始输出路径: reports/agent-runs/2026-07-harness-authorized-exception-v1/70-handoff.md
-本地北京时间: 2026-07-17 18:20:00 CST
-下一步模型: human（用户明确接受 → bookkeeper 合并+cp）
-下一步任务: 用户接受后合并 stage→main、cp harness_owned 到 funding_hedging;否则保持 waiting_user
+本地北京时间: 2026-07-17 23:40:00 CST
+下一步模型: 无（stage 终态;账本由直修弧 red-gate-greening-v1 T0 收口）
+下一步任务: 无后续;本 stage 已 accepted + merged,后续转绿工作在 red-gate-greening-v1

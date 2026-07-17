@@ -1,6 +1,6 @@
 {
   "stage_id": "2026-07-harness-authorized-exception-v1",
-  "status": "stage_accepted_waiting_user",
+  "status": "accepted",
   "workflow": "stage-delivery",
   "stage_branch": {
     "name": "stage/2026-07-harness-authorized-exception-v1",
@@ -202,10 +202,27 @@
     "required": false,
     "reason": null
   },
-  "terminal_reason": null,
-  "next_action": "BOTH reviews ACCEPT (round-3): review-1 kimi ACCEPT, review-2 codex ACCEPT (P0/P1/P2=0, P3=1 non-blocking provider-canonicalization, addressed by normalizing kimi provider->moonshot_kimi + deferring unknown-provider governance to a later stage). Bookkeeper ran pre-accept (see result). status=stage_accepted_waiting_user. AWAITING explicit user acceptance before merge to main + manual cp to funding_hedging. DO NOT merge without user acceptance.",
-  "updated_at": "2026-07-17T11:00:00Z",
-  "current_phase": "stage-accepted-waiting-user",
+  "terminal_reason": "stage accepted and merged to template-repo main (9ea36ab, no-ff); merge recorded in cdef1ee; RC4 mechanism down-synced to funding_hedging (sync e71164c, merge 9d28ec4)",
+  "next_action": "NONE (terminal). Ledger closed 2026-07-17 by direct-fix arc 2026-07-red-gate-greening-v1 T0: status -> accepted to match the established merge facts. User-acceptance verbatim evidence gap registered in user_acceptance.verbatim_evidence_gap (not fabricated).",
+  "updated_at": "2026-07-17T15:37:39Z",
+  "current_phase": "accepted",
+  "user_acceptance": {
+    "status": "accepted_and_merged",
+    "recorded_at": "2026-07-17T15:37:39Z",
+    "recorded_by": "kimi (moonshot_kimi), direct-fix arc 2026-07-red-gate-greening-v1 task T0, under user dispatch authorization recorded in funding_hedging reports/agent-runs/2026-07-red-gate-greening-v1/09-user-authorization.md",
+    "merge_facts": {
+      "merge_commit": "9ea36ab",
+      "merge_record_commit": "cdef1ee",
+      "merge_strategy": "no-ff",
+      "verified_via": "template-repo main git log (9ea36ab Merge stage 2026-07-harness-authorized-exception-v1; cdef1ee bookkeeper: record merge to main)"
+    },
+    "cp_down_sync_facts": {
+      "funding_hedging_sync_branch_commit": "e71164c",
+      "funding_hedging_main_merge": "9d28ec4",
+      "verified_via": "funding_hedging git history; cross-recorded in funding_hedging reports/agent-runs/2026-07-red-gate-greening-v1/00-intake.md"
+    },
+    "verbatim_evidence_gap": "The user acceptance verbatim for this stage is not recoverable from any committed record: 70-handoff.md carries only pre-acceptance process text ('未经用户明确接受,禁止合并 main'), and status.json had no user_acceptance field before this record. The merge and cp down-sync are established git facts (above) that subsequent work (red-gate-greening-v1) has already built upon. Registered as an evidence gap per the direct-fix packet rule 'register gaps honestly, do not fabricate' (08-dispatch-kimi-direct-fix.md T0). The user was offered the opportunity to re-state the acceptance verbatim during the direct-fix session and did not."
+  },
   "model_routing": {
     "implementation_owner": "claude_glm",
     "review_1": "kimi",
