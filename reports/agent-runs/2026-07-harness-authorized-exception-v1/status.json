@@ -1,6 +1,6 @@
 {
   "stage_id": "2026-07-harness-authorized-exception-v1",
-  "status": "review_2",
+  "status": "stage_accepted_waiting_user",
   "workflow": "stage-delivery",
   "stage_branch": {
     "name": "stage/2026-07-harness-authorized-exception-v1",
@@ -68,7 +68,7 @@
   ],
   "reviewer_1": {
     "planned": "kimi",
-    "provider": "moonshot",
+    "provider": "moonshot_kimi",
     "rule": "cross-review isolation from claude_glm"
   },
   "reviewer_2": {
@@ -151,11 +151,17 @@
       "review_1": {"reviewer": "kimi", "provider": "moonshot", "verdict": "ACCEPT", "artifact": "30-review-1.md@<round2>"},
       "review_2": {"reviewer": "codex", "provider": "openai", "verdict": "REWORK", "artifact": "50-review-2.md", "p1": 4, "p3": 1},
       "reviewed_fingerprint": "c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2"
+    },
+    {
+      "round": 3,
+      "review_1": {"reviewer": "kimi", "provider": "moonshot_kimi", "verdict": "ACCEPT"},
+      "review_2": {"reviewer": "codex", "provider": "openai", "verdict": "ACCEPT", "p0": 0, "p1": 0, "p2": 0, "p3": 1},
+      "reviewed_fingerprint": "8b650adfc4747ce6efe36ba7b78806d9b36023bf:29127111d6f38bbe9aedc5b956c13cef632c97da5148cb90859ddce741c2e5f0"
     }
   ],
   "review_1": {
     "reviewer": "kimi",
-    "provider": "moonshot",
+    "provider": "moonshot_kimi",
     "model": "kimi-for-coding",
     "open_p0_p1": [],
     "verdict": "ACCEPT",
@@ -169,7 +175,7 @@
   "review_2": {
     "reviewer": "codex",
     "provider": "openai",
-    "model": null,
+    "model": "gpt-5",
     "primary_provider": "codex",
     "fallback_provider": "claude",
     "fallback_reason": null,
@@ -181,11 +187,11 @@
       "reason": null,
       "unrelated_reviewer_unavailable_evidence": null
     },
-    "open_p0_p1": null,
-    "verdict": null,
-    "json_schema_valid": null,
-    "diff_fingerprint": null,
-    "fix_start_prompt_present": null,
+    "open_p0_p1": [],
+    "verdict": "ACCEPT",
+    "json_schema_valid": true,
+    "diff_fingerprint": "8b650adfc4747ce6efe36ba7b78806d9b36023bf:29127111d6f38bbe9aedc5b956c13cef632c97da5148cb90859ddce741c2e5f0",
+    "fix_start_prompt_present": false,
     "fix_start_prompt_source": null,
     "invalid_json_attempts": 0
   },
@@ -197,9 +203,9 @@
     "reason": null
   },
   "terminal_reason": null,
-  "next_action": "round-3 review-1 (kimi) ACCEPT (P0/P1/P2=0, P3=1; dual-path fingerprint match; #1/#2 closed, main gate zero-leakage, watchdog excluded). status review_1->review_2. Fresh round-3 review-2 dispatch (27-...) bound to head 8b650ad (resolves finding-4). Operator dispatches round-3 review-2 (codex). rework_count=2/3 (last budget) — an ACCEPT closes the stage; any REWORK hits max_rework -> human escalation.",
-  "updated_at": "2026-07-17T10:45:00Z",
-  "current_phase": "rework-2-review-2-dispatch",
+  "next_action": "BOTH reviews ACCEPT (round-3): review-1 kimi ACCEPT, review-2 codex ACCEPT (P0/P1/P2=0, P3=1 non-blocking provider-canonicalization, addressed by normalizing kimi provider->moonshot_kimi + deferring unknown-provider governance to a later stage). Bookkeeper ran pre-accept (see result). status=stage_accepted_waiting_user. AWAITING explicit user acceptance before merge to main + manual cp to funding_hedging. DO NOT merge without user acceptance.",
+  "updated_at": "2026-07-17T11:00:00Z",
+  "current_phase": "stage-accepted-waiting-user",
   "model_routing": {
     "implementation_owner": "claude_glm",
     "review_1": "kimi",
