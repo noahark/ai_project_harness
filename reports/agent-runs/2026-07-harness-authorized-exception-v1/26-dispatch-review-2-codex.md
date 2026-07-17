@@ -1,3 +1,7 @@
+> ⚠️ **SUPERSEDED / 作废（review-2 round-2 finding-4）**：本包绑定的是 round-1 旧 head
+> `9414163`/旧指纹,**不得据此审查**。round-2 起改用 status.json 记录的当轮 head/指纹;
+> round-3 的 review-2 将另出绑定新 head 的专用包。保留此文件仅作历史。
+
 # Dispatch Packet — Stage A review-2（reviewer: codex，终审）
 
 ⚠️ **模板仓 `ai_project_harness`**，分支 `stage/2026-07-harness-authorized-exception-v1`。

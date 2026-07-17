@@ -57,6 +57,13 @@
       "round": 1,
       "dispatch_packet": "reports/agent-runs/2026-07-harness-authorized-exception-v1/35-dispatch-fix-1-claude-glm.md",
       "scope": "review-2 findings 1/2/4 + P2 + finding-3 per Fable5 DIRECTION-SET (10-design 2.1)"
+    },
+    {
+      "id": "claude_glm",
+      "provider": "zhipu_glm",
+      "round": 2,
+      "dispatch_packet": "reports/agent-runs/2026-07-harness-authorized-exception-v1/37-dispatch-fix-2-claude-glm.md",
+      "scope": "round-2 code P1s: provider-authoritative task own-review isolation; evidence must be regular blob (reject tree/symlink/submodule); P3 EOF whitespace. bookkeeper handled watchdog(#3)/dispatch(#4)."
     }
   ],
   "reviewer_1": {
@@ -194,9 +201,9 @@
     "reason": null
   },
   "terminal_reason": null,
-  "next_action": "round-2 review-2 (codex) REWORK: 4 P1 (2 validator code: provider-label-before-provider, git-tree evidence; 2 bookkeeper: unrelated watchdog draft in stage diff, stale review-2 dispatch) + P3 whitespace. All verified real by bookkeeper. rework_count=2/3. PENDING user decision on watchdog-draft handling (relocate to main vs drop+hold) before routing rework-2. Code fixes -> claude_glm; bookkeeper owns watchdog+dispatch+changed_files.",
-  "updated_at": "2026-07-17T09:00:00Z",
-  "current_phase": "rework-2-triage",
+  "next_action": "rework-2: bookkeeper resolved #3 (watchdog moved to main d53abc5, git-rm'd from stage; base..head clean) + #4 (26-dispatch marked superseded). Operator dispatches claude_glm rework-2 fix via 37-dispatch-fix-2-claude-glm.md (code P1 #1 provider-authoritative task own-review isolation, #2 evidence-must-be-blob, P3 whitespace). Then bookkeeper R4 -> commit -> recompute fingerprint (watchdog now excluded) -> update changed_files -> pre-review -> round-3 review-1 (kimi) -> fresh round-3 review-2 dispatch bound to new head -> review-2 (codex).",
+  "updated_at": "2026-07-17T09:30:00Z",
+  "current_phase": "rework-2-fix-dispatch",
   "model_routing": {
     "implementation_owner": "claude_glm",
     "review_1": "kimi",

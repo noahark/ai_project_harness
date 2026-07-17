@@ -11,7 +11,13 @@ it together with `status.json` and only the needed workflow section.
   无关的 adapter-watchdog-runner.md(469行)混进 base..head 且不在 changed_files ④(bookkeeper 错)
   26-dispatch 仍绑 round-1 旧 head。P3:AGENTS.md EOF 空行。均已 bookkeeper 核实成立。
   Codex 确认 round-1 修复本身成立、evidence_sha256 方案可接受(不再要 blob@head_sha)。
-- 分工:①②→claude_glm 代码;③④→bookkeeper。③(watchdog)待用户定处置(迁 main vs 丢+暂存)。
+- 分工:①②→claude_glm 代码(37-dispatch-fix-2);③④→bookkeeper 已办:③看门狗迁 main
+  `d53abc5` + 从 stage git-rm(base..head 已无净 diff);④26-dispatch 已加 SUPERSEDED 横幅,
+  round-3 另出绑新 head 的专用包。
+- Next action: **操作者派 claude_glm 执行 `37-dispatch-fix-2-claude-glm.md`**(#1 provider 权威
+  隔离、#2 evidence 必须常规 blob、P3 空行)。修完 bookkeeper R4→提交→重算指纹(看门狗已排除)→
+  更新 changed_files→pre-review→round-3 review-1(Kimi)→绑新 head 的 round-3 review-2(Codex)。
+  **rework_count=2/3,最后额度**;fix 作者禁为 Codex。
 - Repo: **模板仓** `ai_project_harness`（不是 funding_hedging）。validate-stage.py +
   schemas 是 harness_owned，在此开发；接受后手动 cp 到 funding_hedging。
 - **新 head `c82fc2b05299e1edc1ad972b12e12d8597cfb394`；diff_fingerprint `c82fc2b…:f3d3fb33…`**
