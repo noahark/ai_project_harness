@@ -428,6 +428,52 @@ head_sha + ":" + sha256(git diff --binary <base_sha>..<head_sha> -- . ":(exclude
 Reviewer verdict JSON must echo this value. If code changes after review, the
 verdict is stale.
 
+## Authorized Exceptions (RC4)
+
+Pre-accept allows a review whose `diff_fingerprint` legitimately trails
+`status.diff_fingerprint` to be downgraded to PASS-with-exception, but only
+through a compliant `status.authorized_exceptions[]` record. This repairs the
+RC4 false-red without weakening the content seal: the diff fingerprint formula
+above is unchanged.
+
+The admissible `assertion_id` whitelist is source-enumerated in
+`scripts/validate-stage.py` (`AUTHORIZED_EXCEPTION_ASSERTION_IDS`); stage data
+references an exception class but cannot define one. Adding a class requires a
+template-repo code change plus strong review. v1 admits only class-1
+`review_fingerprint_trails_status`; class-2 (waiving `verdict == ACCEPT`) is
+not admitted because that is the heaviest weakening of the terminal gate.
+
+Each record requires `authorizer == "user"` (literal — a model cannot grant its
+own waiver because the authorization text can only originate from a user
+message), an existing non-empty `evidence_file` carrying the user authorization,
+and `applies_to_fingerprint == status.diff_fingerprint`. The fingerprint pin
+makes the waiver one-shot: any later fix changes `status.diff_fingerprint`, so
+the record auto-expires and the gate re-redds until the waiver is re-authorized.
+This prevents trading RC4's permanent false-red for a permanent false-green.
+
+Release is never silent. On PASS the validator prints
+`PASS (N authorized exceptions applied: <id>@<scope>, …)` and the pre-accept
+evidence must contain that line.
+
+The exemption mechanism cannot exempt itself. Authorized exceptions can never
+waive the negative list, even with a record present:
+
+1. `status.diff_fingerprint` recomputes consistently (the content seal itself).
+2. Clean worktree.
+3. Reviewer identity separation (no override).
+4. An exception record's own `evidence_file` existence.
+5. An exception record's own structural integrity.
+
+Any malformed record fails closed and invalidates every exception, so the
+downgrade path cannot fire on a bad record.
+
+For multi-task stages, `validate_task_coverage` adds chain-plus-prefix
+coverage: the task chain must tile `base..head`, each review's
+`diff_fingerprint` must match the recomputed prefix up to its
+`covers_through_task`, and every task beyond the covered prefix needs its own
+review record or a class-1 exception. Degenerate cases (no `tasks[]`, or a
+single task) preserve the current single-fingerprint behavior exactly.
+
 ## Verdict Contract
 
 Reviewer output must end with one JSON object matching

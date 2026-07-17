@@ -76,6 +76,28 @@ PROVIDER_IDENTITIES = {
     "google": "google",
 }
 
+# RC4 authorized-exception whitelist (source-enumerated; NOT stage data).
+# Stages may REFERENCE an exception class here; they may not DEFINE one.
+# Adding a class requires a template-repo code change + strong review.
+# v1 admits only class-1: a review whose diff_fingerprint legitimately trails
+# status.diff_fingerprint with a user review-waiver on file.
+AUTHORIZED_EXCEPTION_ASSERTION_IDS = {"review_fingerprint_trails_status"}
+
+# Negative list — assertions that can NEVER be waived, even by a record in
+# AUTHORIZED_EXCEPTION_ASSERTION_IDS. The exemption mechanism cannot exempt
+# itself. (Mirrored in AGENTS.md and docs/harness-design.md.)
+#
+# 1. status.diff_fingerprint recomputes consistently (the content seal itself;
+#    enforced in validate_common, no downgrade path).
+# 2. clean worktree (require_clean_worktree; no downgrade path).
+# 3. reviewer identity separation (validate_review_identity; no override).
+# 4. an exception record's own evidence_file existence.
+# 5. an exception record's own structural integrity (fields present,
+#    authorizer == "user", assertion_id in the whitelist, applies_to_fingerprint
+#    pinned to the current fingerprint).
+# Items 4 and 5 are enforced in validate_authorized_exceptions; any violation
+# fails closed so no exception is usable.
+
 
 class ValidationError(Exception):
     pass
@@ -788,25 +810,287 @@ def validate_tasks(root: Path, stage_dir: Path, status_doc: dict[str, Any], task
     return errors
 
 
-def validate_acceptance(root: Path, stage_dir: Path, status_doc: dict[str, Any]) -> list[str]:
+def _evidence_file_nonempty(root: Path, stage_dir: Path, value: Any) -> bool:
+    """Return True if the evidence path resolves to a non-empty file.
+
+    evidence_path_exists only checks existence; RC4 additionally requires the
+    user authorization evidence to carry content (negative-list #4)."""
+    path = Path(str(value))
+    candidates = [path] if path.is_absolute() else [root / path, stage_dir / path]
+    for candidate in candidates:
+        if candidate.is_file():
+            try:
+                return len(candidate.read_text(encoding="utf-8", errors="replace").strip()) > 0
+            except OSError:
+                return False
+    return False
+
+
+def _resolve_task(tasks: list[Any], ref: Any) -> dict[str, Any] | None:
+    """Resolve a covers_through_task reference to a task dict.
+
+    Accepts a 0-based integer index or a task id string."""
+    if isinstance(ref, bool):
+        return None
+    if isinstance(ref, int):
+        if 0 <= ref < len(tasks):
+            task = tasks[ref]
+            return task if isinstance(task, dict) else None
+        return None
+    if isinstance(ref, str):
+        for task in tasks:
+            if isinstance(task, dict) and str(task.get("id")) == ref:
+                return task
+    return None
+
+
+def validate_authorized_exceptions(
+    root: Path, stage_dir: Path, status_doc: dict[str, Any]
+) -> tuple[list[str], list[dict[str, Any]]]:
+    """Validate status.authorized_exceptions records (RC4).
+
+    The admissible assertion_id whitelist is source-enumerated in
+    AUTHORIZED_EXCEPTION_ASSERTION_IDS, not in stage data. Stages reference an
+    exception class; they cannot define one.
+
+    Returns (errors, valid_exceptions). Every error here is negative-list #4/#5
+    (an exception record's own integrity) and is itself non-downgradable. On any
+    malformed record the function fails closed: valid_exceptions is empty, so the
+    downgrade path in validate_acceptance cannot fire.
+    """
+    records = status_doc.get("authorized_exceptions", [])
+    if records is None:
+        return [], []
+    if not isinstance(records, list):
+        return ["authorized_exceptions must be a list when present"], []
+
+    status_fingerprint = status_doc.get("diff_fingerprint")
     errors: list[str] = []
+    valid: list[dict[str, Any]] = []
+
+    for idx, record in enumerate(records):
+        prefix = f"authorized_exceptions[{idx}]"
+        if not isinstance(record, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+        record_ok = True
+
+        assertion_id = record.get("assertion_id")
+        if assertion_id not in AUTHORIZED_EXCEPTION_ASSERTION_IDS:
+            errors.append(
+                f"{prefix}.assertion_id {assertion_id!r} is not in the source whitelist "
+                f"{sorted(AUTHORIZED_EXCEPTION_ASSERTION_IDS)}"
+            )
+            record_ok = False
+
+        # Structural anti-self-authorization: only the literal "user" is accepted.
+        # A model cannot grant its own waiver because the verbatim authorization
+        # text can only originate from a user message.
+        if record.get("authorizer") != "user":
+            errors.append(f"{prefix}.authorizer must be the literal 'user'")
+            record_ok = False
+
+        # Pin to the current fingerprint. Any later fix changes
+        # status.diff_fingerprint, so this record auto-expires and the gate
+        # re-redds; the waiver must be re-authorized. Prevents trading RC4's
+        # permanent false-red for a permanent false-green.
+        if not status_fingerprint or record.get("applies_to_fingerprint") != status_fingerprint:
+            errors.append(
+                f"{prefix}.applies_to_fingerprint must equal current status.diff_fingerprint "
+                f"(pinned; auto-expires on next diff)"
+            )
+            record_ok = False
+
+        if not _nonempty_string(record.get("scope")):
+            errors.append(
+                f"{prefix}.scope must be a non-empty string (e.g. 'review_1' or 'task:<id>')"
+            )
+            record_ok = False
+
+        evidence_file = record.get("evidence_file")
+        if not _nonempty_string(evidence_file):
+            errors.append(f"{prefix}.evidence_file must be a non-empty string path")
+            record_ok = False
+        elif not evidence_path_exists(root, stage_dir, evidence_file):
+            errors.append(f"{prefix}.evidence_file does not exist: {evidence_file}")
+            record_ok = False
+        elif not _evidence_file_nonempty(root, stage_dir, evidence_file):
+            errors.append(f"{prefix}.evidence_file must be non-empty: {evidence_file}")
+            record_ok = False
+
+        if record_ok:
+            valid.append(record)
+
+    # Fail-closed: one bad record invalidates every record.
+    if errors:
+        return errors, []
+    return [], valid
+
+
+def _exception_covering_review(
+    valid_exceptions: list[dict[str, Any]], review_key: str
+) -> dict[str, Any] | None:
+    """Return the first valid exception that downgrades the
+    review_fingerprint_trails_status assertion for this review, else None.
+
+    Only assertion_id == 'review_fingerprint_trails_status' (the sole class-1
+    whitelisted assertion) may downgrade the diff_fingerprint mismatch, and only
+    when scope names this exact review. Any future whitelisted assertion that is
+    not this class-1 case must NOT downgrade this assertion."""
+    for record in valid_exceptions:
+        if record.get("assertion_id") != "review_fingerprint_trails_status":
+            continue
+        if record.get("scope") == review_key:
+            return record
+    return None
+
+
+def validate_task_coverage(
+    root: Path, stage_dir: Path, status_doc: dict[str, Any]
+) -> list[str]:
+    """RC4 D3: task-level fingerprint coverage via chain + prefix.
+
+    Degenerate cases (no tasks, or a single task) return [] and preserve the
+    current single-fingerprint behavior exactly. Multi-task stages require the
+    task chain to tile base..head, each review's diff_fingerprint to match the
+    recomputed prefix up to its covers_through_task, and every task beyond the
+    covered prefix to have its own review record or a class-1 exception.
+    """
+    errors: list[str] = []
+    tasks, task_shape_errors = normalize_tasks(status_doc)
+    if task_shape_errors:
+        return task_shape_errors
+    if len(tasks) <= 1:
+        return errors  # degenerate: 0 or 1 task preserves current behavior exactly
+
+    status_base = status_doc.get("base_sha")
+    status_head = status_doc.get("head_sha")
+
+    # Chain: tasks[0].base == status.base; tasks[i+1].base == tasks[i].head;
+    # tasks[-1].head == status.head.
+    prev_head = status_base
+    chain_ok = True
+    for idx, task in enumerate(tasks):
+        if not isinstance(task, dict):
+            errors.append(f"task[{idx}] must be an object")
+            chain_ok = False
+            continue
+        task_id = task.get("id", f"[{idx}]")
+        expected_base = status_base if idx == 0 else prev_head
+        if task.get("base_sha") != expected_base:
+            errors.append(
+                f"task chain broken: task {task_id}.base_sha must equal {expected_base!r}, "
+                f"got {task.get('base_sha')!r}"
+            )
+            chain_ok = False
+        prev_head = task.get("head_sha")
+    if prev_head != status_head:
+        errors.append(
+            f"task chain broken: last task head_sha must equal status.head_sha "
+            f"{status_head!r}, got {prev_head!r}"
+        )
+        chain_ok = False
+    if not chain_ok:
+        return errors
+
+    # Exceptions are validated (and their structural errors surfaced) by
+    # validate_acceptance. Here we only consume the valid subset to decide
+    # task coverage; fail-closed in validate_authorized_exceptions means an empty
+    # valid set when any record is bad, so no task can rely on a bad exception.
+    _, valid_exceptions = validate_authorized_exceptions(root, stage_dir, status_doc)
+
+    covered_indices: set[int] = set()
+    for key in ("review_1", "review_2"):
+        review = status_doc.get(key, {})
+        if not isinstance(review, dict):
+            continue
+        ref = review.get("covers_through_task")
+        if ref is None:
+            continue
+        task = _resolve_task(tasks, ref)
+        if task is None:
+            errors.append(f"{key}.covers_through_task does not resolve to a task: {ref!r}")
+            continue
+        j_idx = tasks.index(task)
+        try:
+            expected = compute_diff_fingerprint(root, stage_dir, status_base, task["head_sha"])
+        except (ValidationError, KeyError) as exc:
+            errors.append(f"{key} prefix fingerprint could not be computed: {exc}")
+            continue
+        if review.get("diff_fingerprint") != expected:
+            errors.append(
+                f"{key} prefix diff_fingerprint mismatch: recorded={review.get('diff_fingerprint')}, "
+                f"expected={expected}"
+            )
+        for k in range(0, j_idx + 1):
+            covered_indices.add(k)
+
+    for idx, task in enumerate(tasks):
+        if not isinstance(task, dict) or idx in covered_indices:
+            continue
+        task_id = task.get("id", f"[{idx}]")
+        own_review = task.get("review_1")
+        has_own_review = isinstance(own_review, dict) and _nonempty_string(
+            own_review.get("diff_fingerprint")
+        )
+        scope_matches = any(
+            _nonempty_string(exc.get("scope"))
+            and exc.get("scope") in (f"task:{task_id}", str(task_id))
+            for exc in valid_exceptions
+        )
+        if not has_own_review and not scope_matches:
+            errors.append(
+                f"uncovered task {task_id}: needs its own review record or a class-1 "
+                f"authorized_exception scoped to this task"
+            )
+
+    return errors
+
+
+def validate_acceptance(
+    root: Path, stage_dir: Path, status_doc: dict[str, Any]
+) -> tuple[list[str], list[dict[str, str]]]:
+    """RC4: review.diff_fingerprint != status.diff_fingerprint is the ONLY
+    assertion a compliant authorized_exception may downgrade. The verdict,
+    json_schema_valid, tests.status, and reviewer-identity assertions are never
+    downgraded (negative list + class-2 not admitted). Returns (errors,
+    applied_exceptions) where each applied exception is {assertion_id, scope}."""
+    errors: list[str] = []
+    applied_exceptions: list[dict[str, str]] = []
     tests = status_doc.get("tests", {})
     if not isinstance(tests, dict) or str(tests.get("status", "")).lower() not in {"pass", "passed"}:
         errors.append("pre-accept requires tests.status pass/passed")
+
+    # Fail-closed: authorize first. Any error in the exception records
+    # (negative-list #4/#5) invalidates ALL exceptions, so none are usable below.
+    auth_errors, valid_exceptions = validate_authorized_exceptions(root, stage_dir, status_doc)
+    errors.extend(auth_errors)
+
     for key in ("review_1", "review_2"):
         review = status_doc.get(key, {})
         if not isinstance(review, dict):
             errors.append(f"{key} must be an object")
             continue
+        # Terminal-gate assertions — never downgraded.
         if review.get("verdict") != "ACCEPT":
             errors.append(f"{key}.verdict must be ACCEPT")
         if not truthy(review.get("json_schema_valid")):
             errors.append(f"{key}.json_schema_valid must be true")
+        # The ONE downgradable assertion.
         if review.get("diff_fingerprint") != status_doc.get("diff_fingerprint"):
-            errors.append(f"{key}.diff_fingerprint must match status.diff_fingerprint")
+            exception = _exception_covering_review(valid_exceptions, key)
+            if exception is None:
+                errors.append(f"{key}.diff_fingerprint must match status.diff_fingerprint")
+            else:
+                applied_exceptions.append(
+                    {
+                        "assertion_id": str(exception.get("assertion_id")),
+                        "scope": str(exception.get("scope")),
+                    }
+                )
     errors.extend(validate_review_identity(root, stage_dir, status_doc))
     errors.extend(validate_tasks(root, stage_dir, status_doc, None))
-    return errors
+    return errors, applied_exceptions
 
 
 def main() -> int:
@@ -826,6 +1110,7 @@ def main() -> int:
         status_doc = load_status(stage_dir)
 
         errors: list[str] = []
+        applied_exceptions: list[dict[str, str]] = []
         if args.phase in {"pre-review", "pre-accept"}:
             try:
                 require_clean_worktree(root)
@@ -842,7 +1127,9 @@ def main() -> int:
             if args.phase == "pre-review":
                 errors.extend(validate_review_identity(root, stage_dir, status_doc))
         if args.phase == "pre-accept":
-            errors.extend(validate_acceptance(root, stage_dir, status_doc))
+            acc_errors, applied_exceptions = validate_acceptance(root, stage_dir, status_doc)
+            errors.extend(acc_errors)
+            errors.extend(validate_task_coverage(root, stage_dir, status_doc))
 
         if errors:
             print("STAGE VALIDATION FAILED")
@@ -860,6 +1147,13 @@ def main() -> int:
         print(f"status={status_doc.get('status')}")
         if status_doc.get("diff_fingerprint"):
             print(f"diff_fingerprint={status_doc['diff_fingerprint']}")
+        if applied_exceptions:
+            summary = ", ".join(
+                f"{entry['assertion_id']}@{entry['scope']}" for entry in applied_exceptions
+            )
+            print(
+                f"PASS ({len(applied_exceptions)} authorized exceptions applied: {summary})"
+            )
         return 0
     except ValidationError as exc:
         print("STAGE VALIDATION FAILED")

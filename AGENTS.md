@@ -317,6 +317,26 @@ dispatching the fix.
   `main` is merged into a stage branch by exception, record the reason, rerun
   tests and validator, recompute fingerprints, and re-enter or mechanically
   rebind review gates as the changed diff requires. Rebase is forbidden.
+- Pre-accept authorized exceptions (RC4): a review whose `diff_fingerprint`
+  legitimately trails `status.diff_fingerprint` may be downgraded to
+  PASS-with-exception ONLY by a compliant `status.authorized_exceptions[]`
+  record. The admissible `assertion_id` whitelist is source-enumerated in
+  `scripts/validate-stage.py` (`AUTHORIZED_EXCEPTION_ASSERTION_IDS`); stage
+  data may REFERENCE an exception class but cannot DEFINE one. Each record
+  requires `authorizer == "user"` (literal), an existing non-empty
+  `evidence_file` carrying the user authorization, and
+  `applies_to_fingerprint == status.diff_fingerprint` so the waiver is pinned
+  to one diff and auto-expires the next time the fingerprint changes. v1 admits
+  only class-1 `review_fingerprint_trails_status`; class-2 (waiving
+  `verdict == ACCEPT`) is NOT admitted. Release is never silent: on PASS the
+  validator prints
+  `PASS (N authorized exceptions applied: <id>@<scope>, …)`.
+- Authorized exceptions can NEVER waive the negative list, even with a record
+  present: (1) `status.diff_fingerprint` recomputes consistently, (2) clean
+  worktree, (3) reviewer identity separation, (4) an exception record's own
+  `evidence_file` existence, (5) an exception record's own structural
+  integrity. The exemption mechanism cannot exempt itself; any malformed
+  record fails closed and invalidates every exception.
 
 ## Standard Stage Delivery
 
