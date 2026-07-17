@@ -310,6 +310,32 @@ The workflow may stop only for these terminal reasons:
 Other issues stay inside the active workflow as retry, fix, fallback, or evidence
 collection work.
 
+## Close-out Governance (Subordinate Rules)
+
+Three rules, encoded from the 2026-07 docs-truth-sync post-mortem and the
+red-gate-greening direct-fix arc. **All three are subordinate to the main
+line: a stage closes only through review-2 plus explicit user acceptance.
+These rules govern how residuals are recorded and batched; they never lower
+a gate, never waive a review, and never replace user acceptance.**
+
+1. **max_rework exhaustion is a hard stop, not an override conveyor.** When
+   `max_rework` is reached and the remaining findings are non-blocking, the
+   default close-out is: register the residuals as known issues (Deferred
+   Work registry + `reports/follow-ups/`), record a user-acceptance override
+   with the residuals disclosed, and stop. Repeated over-limit
+   authorizations (docs-truth-sync went 6 rounds with 3 overrides) are the
+   anti-pattern this rule replaces.
+2. **Documentation stages may close with P2-level residue, and semantic
+   convergence is the default contract posture.** A docs-only stage need not
+   chase exhaustive enumeration; under-claiming beats over-claiming
+   ("少承诺优于全枚举"). Reviewers should flag over-specified prose as a
+   defect, and fixes should narrow claims to what the artifact actually
+   guarantees. P2 doc residue at close-out is acceptable when registered.
+3. **Harness fixes default to register-and-batch.** A non-blocking Harness
+   defect is registered in the known-issue ledger instead of immediately
+   opening a stage; batched items are collected by the next Harness arc or
+   by explicit user decision.
+
 ## Model Adapters
 
 Workflow YAML must not directly interpolate shell commands for model execution.
@@ -595,3 +621,44 @@ Not implemented yet:
 - Manual first stage delivery execution.
 - Git commits for bootstrap.
 - Product PRD and technical stack decisions.
+
+## Known Issues Registry
+
+Registered non-blocking Harness defects and deferred design items. Each entry
+waits for its first real instance or an explicit user decision (whitelist
+principle); none of them may be "fixed" silently ahead of that. Also tracked
+in `reports/follow-ups/` of the project repo.
+
+- **class-2 exceptions (review-2 verdict REWORK but content clean)** — NOT
+  admitted in v1; `docs-truth-sync-v1` is the first real instance, recorded
+  as `known_red (class-2, pending user decision D-i)`. Admission would need a
+  new whitelisted `assertion_id` plus strict per-finding user disposition
+  evidence. Owner: user.
+- **Provider-identity governance (P3)** — an unregistered provider string in
+  a status file is currently self-declared; canonicalization (e.g. kimi →
+  moonshot_kimi) landed for the known set. Broader registry governance waits
+  for a concrete conflict.
+- **Pure-evidence-segment exemption** — a future stage whose inter-task
+  segments contain only bookkeeper evidence commits and no full-range review
+  would go red under D3-v2; no instance exists (review-2 always covers the
+  full range today). Collect on first instance.
+- **Waypoint ancestor-order hygiene (P3)** — D3-v2 does not require
+  waypoints to be ancestor-ordered (tree-diff transitivity does not depend on
+  it); an optional linearity lint may be added if disorder appears in
+  practice.
+- **Bookkeeper waypoint convention** — on multi-task stages the bookkeeper
+  records integration waypoints (`coverage_waypoints[]`) as a courtesy so
+  prefix reviews can vouch subranges; with a full-range review-2 they are
+  unnecessary (default `[base, head]`).
+- **Legacy stage-record reds (fixture-known)** — `harness-flow-optimization-v1`
+  (legacy status value `accepted_and_merged_to_main`; one-word migration to
+  `accepted` is an optional remediation, user decides),
+  `env-startup-v1` (incomplete early-manual records),
+  `local-service-launchd-v1` (review_1 trails; class-1-shaped, exception
+  available if the user authorizes it), `public-market-bstock-alias/impl/ui-cn`
+  (missing breakdown file / task-fingerprint record defects).
+- **Rule-3 note** — the review-scoped trailing-segment exception path has no
+  real user today (the only trailing-review stage, docs-truth-sync, stays red
+  on the non-downgradable verdict assertion). It is retained as defense in
+  depth and is covered by adversarial case A8; zero usage is not a deletion
+  argument.
