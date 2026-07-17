@@ -419,3 +419,708 @@ if __name__ == "__main__":
 本地北京时间: 2026-07-17 11:09:19 CST
 下一步模型: bookkeeper(Claude Opus 4.8)
 下一步任务: 提交本 stage 4 文件改动、重算 diff_fingerprint、跑 validator pre-accept、派 review-1(Kimi)
+
+================================================================
+E. REWORK-1 段(针对 review-2 Codex 的 4 P1 + 2 P2;2026-07-17)
+   修复者: claude_glm(zhipu_glm)| 不 commit | 原 A-D 段证据保留不动
+================================================================
+
+本段证明 review-2 六条 finding 的修法 + 零回归 + bootstrapping。构造脚手架
+exc() 现携带 evidence_sha256(finding-3 新增字段);write_and_commit 在 evidence
+提交后用 `git show HEAD:<waiver>` 回填真实 committed-blob digest,使 post-head
+tracked+digest 匹配的合法路径可表达(同时证明 validator 读提交 blob、不读工作树)。
+finding-4 的 task id 非空/唯一检查放在独立 _task_id_errors(),仅由 validate_tasks /
+validate_task_coverage / validate_dispatch_ready 显式调用(不放进 normalize_tasks),
+故 checkpoint 经 validate_parallel_mode 不触发,本 stage 自身 checkpoint 仍 PASS。
+
+命令:
+  python3 -m py_compile scripts/validate-stage.py
+  python3 /tmp/rc4_rework_test.py        # 临时脚本,源码贴本段末尾,不在交付树
+  python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase checkpoint
+
+----- py_compile + checkpoint(bootstrapping)-----
+$ python3 -m py_compile scripts/validate-stage.py && echo COMPILE_OK
+COMPILE_OK
+
+$ python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase checkpoint
+STAGE VALIDATION PASSED
+stage=reports/agent-runs/2026-07-harness-authorized-exception-v1
+phase=checkpoint
+status=implementing
+diff_fingerprint=941416345c92bf3c42556e0d9178f28e1384b4e6:5b28d88ce253d6d41f9c5841cfe51265a66e132c8fe7556d1177da4404b186f0
+exit=0
+
+----- rework-1 构造样例输出(23 例,proof by execution)-----
+$ python3 /tmp/rc4_rework_test.py
+
+===== 1. compliant class-1 -> PASS + banner  [expect exit=0, got 0] OK =====
+STAGE VALIDATION PASSED
+stage=reports/agent-runs/test-stage
+phase=pre-accept
+status=accepted
+diff_fingerprint=9bedc71d68bb53be7fb598d5865c51097725fd10:f2abce1d812cc595302526af40b0085b636badc658e32e5f0d5b76bf4b387b9c
+PASS (2 authorized exceptions applied: review_fingerprint_trails_status@review_1, review_fingerprint_trails_status@review_2)
+
+===== 2. missing evidence_file -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].evidence_file is not committed/tracked at c3ba6bc72436: reports/agent-runs/test-stage/MISSING.md
+- authorized_exceptions[1].evidence_file is not committed/tracked at c3ba6bc72436: reports/agent-runs/test-stage/MISSING.md
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+===== 3. applies_to_fingerprint pin -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].applies_to_fingerprint must equal current status.diff_fingerprint (pinned; auto-expires on next diff)
+- authorized_exceptions[1].applies_to_fingerprint must equal current status.diff_fingerprint (pinned; auto-expires on next diff)
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+===== 4. authorizer != user -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].authorizer must be the literal 'user'
+- authorized_exceptions[1].authorizer must be the literal 'user'
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+===== 5. negative-list #1 tampered fp -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- diff_fingerprint mismatch: recorded=TAMPERED:xxx, expected=999fd65e6a810da85f2972abf93ea3c5f8784af0:f2abce1d812cc595302526af40b0085b636badc658e32e5f0d5b76bf4b387b9c
+
+===== 6a. D3 chain ok (prefix->B, task:C) -> PASS, banner has task:C  [expect exit=0, got 0] OK =====
+STAGE VALIDATION PASSED
+stage=reports/agent-runs/test-stage
+phase=pre-accept
+status=accepted
+diff_fingerprint=27d19416619911ef3e50fc50d0043cb21e3a5523:2584c9b1545c567d926167deb634ed214bbfda7ceb53f4487db69916b1050e80
+PASS (2 authorized exceptions applied: review_fingerprint_trails_status@review_1, review_fingerprint_trails_status@task:C)
+
+===== 6b. D3 chain broken -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- task chain broken: task B.base_sha must equal 'cbb20e32836dc2af3a72bee26e34335acae33b7b', got '74a0b9485b83bab46418a9297d81f08f385e7e92'
+
+===== 7a. single task -> PASS (degenerate)  [expect exit=0, got 0] OK =====
+STAGE VALIDATION PASSED
+stage=reports/agent-runs/test-stage
+phase=pre-accept
+status=accepted
+diff_fingerprint=66ea332e4084b5bd2b1b0fa7733e4b617deb64f2:f2abce1d812cc595302526af40b0085b636badc658e32e5f0d5b76bf4b387b9c
+
+===== 7b. tasks absent -> PASS (degenerate)  [expect exit=0, got 0] OK =====
+STAGE VALIDATION PASSED
+stage=reports/agent-runs/test-stage
+phase=pre-accept
+status=accepted
+diff_fingerprint=66ea332e4084b5bd2b1b0fa7733e4b617deb64f2:f2abce1d812cc595302526af40b0085b636badc658e32e5f0d5b76bf4b387b9c
+
+===== REG. baseline single-task -> PASS  [expect exit=0, got 0] OK =====
+STAGE VALIDATION PASSED
+stage=reports/agent-runs/test-stage
+phase=pre-accept
+status=accepted
+diff_fingerprint=305f97d59fb329fa1491ece9c44aa318f077445f:f2abce1d812cc595302526af40b0085b636badc658e32e5f0d5b76bf4b387b9c
+
+===== F1. task-only exception -> PASS, banner shows task:B  [expect exit=0, got 0] OK =====
+STAGE VALIDATION PASSED
+stage=reports/agent-runs/test-stage
+phase=pre-accept
+status=accepted
+diff_fingerprint=7ed63c1d64de1b334408f459e255d2ac9547500b:87154c4a856ed6b7d4d55493dc2668c8f1dba9fe711e62f7d3dd9110619e084e
+PASS (1 authorized exceptions applied: review_fingerprint_trails_status@task:B)
+
+===== F2. fabricated task review -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- uncovered task A: needs a complete own review or a class-1 authorized_exception scoped to task:A
+- task B review_1.reviewer must be a non-empty string for a task own-review
+
+===== F3-abs. absolute evidence path -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].evidence_file must be repo-relative, got absolute path: /etc/hosts
+- authorized_exceptions[1].evidence_file must be repo-relative, got absolute path: /etc/hosts
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+===== F3-esc. ../ escape evidence -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].evidence_file escapes repository root: ../../../../etc/passwd
+- authorized_exceptions[1].evidence_file escapes repository root: ../../../../etc/passwd
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+===== F3-dig. evidence_sha256 mismatch -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].evidence_sha256 mismatch: recorded=0000000000000000000000000000000000000000000000000000000000000000, expected=4856e78f707f099c57ddb8b8f7e7ca4e2abd0892b00d45cb7439f14a1b22e741
+- authorized_exceptions[1].evidence_sha256 mismatch: recorded=0000000000000000000000000000000000000000000000000000000000000000, expected=4856e78f707f099c57ddb8b8f7e7ca4e2abd0892b00d45cb7439f14a1b22e741
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+===== F3-empty. empty evidence blob -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].evidence_file committed blob must be non-empty: reports/agent-runs/test-stage/waiver.md
+- authorized_exceptions[1].evidence_file committed blob must be non-empty: reports/agent-runs/test-stage/waiver.md
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+===== F4-raw. raw-id task scope -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- uncovered task C: needs a complete own review or a class-1 authorized_exception scoped to task:C
+
+===== F4-dup. duplicate task id -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- duplicate task id: A
+- duplicate task id: A
+- duplicate task id: A
+
+===== F4-miss. missing task id -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- tasks[0].id must be a non-empty string
+- tasks[0].id must be a non-empty string
+- tasks[0].id must be a non-empty string
+
+===== P2-r. missing reason -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].reason must be a non-empty string
+- authorized_exceptions[1].reason must be a non-empty string
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+===== P2-a. non-ISO at -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].at must be a parseable ISO-8601 timestamp
+- authorized_exceptions[1].at must be a parseable ISO-8601 timestamp
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+===== CL2. class-2 verdict REWORK + exception -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- review_2.verdict must be ACCEPT
+
+===== ID. review_2 same provider as implementer -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- review_2 provider identity must differ from every implementation/fix author provider identity; no override is allowed
+
+===== SUMMARY =====
+ALL CASES AS EXPECTED
+
+----- finding → 用例映射 -----
+  finding-1(task 例外静默放行):
+    F1(仅 task:B 例外 → 横幅 "PASS (1 ... @task:B)",不再静默);
+    6a(@task:C 现显示,横幅 N 从 1→2;v1 时该 task 例外被消费却不打印)。
+  finding-2(任意非空串冒充 task own-review):
+    F2({"review_1":{"diff_fingerprint":"x"}} → "task B review_1.reviewer must be a non-empty string" FAIL);
+    F1 的 task A 提供完整合规跨 provider own review(verdict ACCEPT / json_schema_valid / 具名 reviewer·provider·model / 指纹==重算 task 指纹)→ 该 task 被覆盖、PASS。
+  finding-3(授权来源硬化,Fable5 A 档 + C 边界):
+    F3-abs(绝对路径)/ F3-esc(../ 逃逸)/ F3-dig(evidence_sha256 不匹配)/ F3-empty(空 blob)→ FAIL;
+    合法路径:1、6a、F1 的例外均 post-head 提交、tracked、digest 匹配 → PASS;
+    2(MISSING.md 未 tracked → git show 失败 → "not committed/tracked")证明 validator 读提交 blob、不读工作树。
+    (注:pre-accept 的 require_clean_worktree 使"工作树中 untracked 文件"不可能到达 evidence 检查 ——
+     untracked 防护是 negative-list #2 + committed-blob 读取双层;故未单列 untracked-in-worktree 用例。)
+  finding-4(task scope 歧义/不唯一):
+    F4-raw(裸 id scope "C" 而非 "task:C" → uncovered task C FAIL);
+    F4-dup(重复 task id → FAIL);F4-miss(缺 id → FAIL)。
+    "一个例外覆盖两 task"的情形由 id 唯一性杜绝(重复 id 先 FAIL)。
+  P2-1(reason/at 结构校验):P2-r(空 reason)/ P2-a(非 ISO at)→ FAIL。
+  P2-2(模板键):_template tasks[] 删 covers_through_task、authorized_exceptions 加 evidence_sha256(见 git diff)。
+  Q2(防自授表述):AGENTS.md / harness-design.md / validate-stage.py 注释改为防静默 + 强制人核两层,删过度声称(见 git diff)。
+  零回归:原 10 例(1/2/3/4/5/6a/6b/7a/7b/REG)行为符合预期(2 的 message 由 "does not exist" 精化为
+    "not committed/tracked",语义升级,仍 FAIL);CL2(class-2 verdict==REWORK 即使有例外仍 FAIL,verdict 不降级)/
+    ID(review_2 同 provider 仍 FAIL,身份分离不降级)negative-list 守住。
+
+----- rework-1 构造样例脚本源码(/tmp/rc4_rework_test.py,临时,不在交付树;贴此备复核)-----
+
+#!/usr/bin/env python3
+"""RC4 rework-1 construction tests (TEMPORARY; not a delivery file).
+
+Builds throwaway git repos + status.json and runs the REAL validator to prove:
+  - zero regression on the original 10 cases (exc updated to carry
+    evidence_sha256 per finding-3),
+  - finding-1: a PASS relying on a task-scoped exception prints the task scope,
+  - finding-2: fabricated/incomplete task own-review FAIL; a complete valid one PASS,
+  - finding-3: absolute / escape / untracked / digest-mismatch / empty FAIL;
+    post-head tracked+digest-matched PASS,
+  - finding-4: raw-id scope / duplicate id / missing id FAIL,
+  - P2-1: missing reason / non-ISO at FAIL,
+  - class-2 verdict and reviewer-identity negative-list still FAIL.
+"""
+import subprocess, json, os, tempfile, hashlib, importlib.util
+from pathlib import Path
+
+REPO = "/Users/ark/Desktop/ai code/ai_project_harness"
+VALIDATOR = os.path.join(REPO, "scripts", "validate-stage.py")
+STAGE_REL = "reports/agent-runs/test-stage"
+WAIVER = "reports/agent-runs/test-stage/waiver.md"
+MISSING = "reports/agent-runs/test-stage/MISSING.md"
+PLACEHOLDERS = ["00-task.md", "10-design.md", "11-adr.md", "20-implementation.md",
+                "60-test-output.txt", "70-handoff.md", "30-review-1.md", "50-review-2.md"]
+
+spec = importlib.util.spec_from_file_location("validate_stage", VALIDATOR)
+vs = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(vs)
+
+
+def git(args, cwd):
+    r = subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"git {args}: {r.stderr.strip()}")
+    return r.stdout.strip()
+
+
+def make_repo(tmp, n_extra):
+    subprocess.run(["git", "init", "-q"], cwd=tmp, check=True)
+    for k, v in {"user.email": "t@t", "user.name": "t", "commit.gpgsign": "false"}.items():
+        git(["config", k, v], tmp)
+    f = tmp / "src.txt"; f.write_text("base\n")
+    git(["add", "."], tmp); git(["commit", "-q", "-m", "c0"], tmp)
+    shas = [git(["rev-parse", "HEAD"], tmp)]
+    for i in range(1, n_extra + 1):
+        f.write_text(f.read_text() + f"line{i}\n")
+        git(["add", "."], tmp); git(["commit", "-q", "-m", f"c{i}"], tmp)
+        shas.append(git(["rev-parse", "HEAD"], tmp))
+    return shas
+
+
+def fp(root, sd, base, head):
+    return vs.compute_diff_fingerprint(root, sd, base, head)
+
+
+def write_and_commit(tmp, doc, waiver_text="user review-waiver authorization (verbatim)\n",
+                     track_waiver=True):
+    sd = tmp / STAGE_REL; sd.mkdir(parents=True, exist_ok=True)
+    (sd / "waiver.md").write_text(waiver_text)
+    for name in PLACEHOLDERS:
+        if not (sd / name).exists():
+            (sd / name).write_text("placeholder\n")
+    if track_waiver:
+        git(["add", "-A"], tmp); git(["commit", "-q", "-m", "evidence"], tmp)
+        blob = subprocess.run(["git", "show", f"HEAD:{WAIVER}"], cwd=tmp, capture_output=True).stdout
+        digest = hashlib.sha256(blob).hexdigest()
+        for rec in doc.get("authorized_exceptions", []):
+            if "evidence_sha256" not in rec:
+                rec["evidence_sha256"] = digest
+    else:
+        git(["add"] + [f"{STAGE_REL}/{n}" for n in PLACEHOLDERS], tmp)
+        git(["commit", "-q", "-m", "no-evidence"], tmp)
+    (sd / "status.json").write_text(json.dumps(doc, indent=2))
+    if track_waiver:
+        git(["add", "-A"], tmp)
+    else:
+        git(["add", f"{STAGE_REL}/status.json"], tmp)
+    git(["commit", "-q", "-m", "stage"], tmp)
+
+
+def run_validator(tmp):
+    r = subprocess.run(["python3", VALIDATOR, "test-stage", "--phase", "pre-accept"],
+                       cwd=tmp, capture_output=True, text=True)
+    return r.returncode, (r.stdout + r.stderr).rstrip()
+
+
+def base_doc(base, head, sfp, r1=None, r2=None, tasks=None, impl="claude_glm"):
+    return {
+        "stage_id": "test-stage", "status": "accepted", "workflow": "stage-delivery",
+        "implementer": impl, "base_sha": base, "head_sha": head, "diff_fingerprint": sfp,
+        "tests": {"status": "pass", "commands": ["echo"]},
+        "review_1": {"reviewer": "kimi", "provider": "kimi", "model": "kimi",
+                     "verdict": "ACCEPT", "json_schema_valid": True,
+                     "diff_fingerprint": r1 if r1 is not None else sfp,
+                     "reviewer_prior_involvement": "none"},
+        "review_2": {"reviewer": "codex", "provider": "codex", "model": "gpt",
+                     "primary_provider": "codex",
+                     "verdict": "ACCEPT", "json_schema_valid": True,
+                     "diff_fingerprint": r2 if r2 is not None else sfp,
+                     "reviewer_prior_involvement": "none"},
+        "tasks": tasks if tasks is not None else [],
+    }
+
+
+def exc(scope, applies, evidence=WAIVER, authorizer="user", reason="user review-waiver",
+        at="2026-07-17T00:00:00Z", sha=None):
+    rec = {"assertion_id": "review_fingerprint_trails_status", "scope": scope,
+           "applies_to_fingerprint": applies, "reason": reason, "authorizer": authorizer,
+           "evidence_file": evidence, "at": at}
+    if sha is not None:
+        rec["evidence_sha256"] = sha
+    return rec
+
+
+def new_tmp():
+    return Path(tempfile.mkdtemp(prefix="rc4rw_"))
+
+
+def setup(n_extra):
+    tmp = new_tmp(); shas = make_repo(tmp, n_extra); sd = tmp / STAGE_REL; sd.mkdir(parents=True)
+    return tmp, shas, sd
+
+
+def c1():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp), exc("review_2", sfp)]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def c2():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp, evidence=MISSING), exc("review_2", sfp, evidence=MISSING)]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def c3():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", "WRONG:fingerprint"), exc("review_2", "WRONG:fingerprint")]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def c4():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp, authorizer="claude_glm"), exc("review_2", sfp, authorizer="claude_glm")]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def c5():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; real = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, "TAMPERED:xxx", r1="TAMPERED:xxx", r2="TAMPERED:xxx")
+    doc["authorized_exceptions"] = [exc("review_1", "TAMPERED:xxx")]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def c6a():
+    tmp, shas, sd = setup(3); base, Ah, Bh, head = shas[0], shas[1], shas[2], shas[3]
+    sfp = fp(tmp, sd, base, head); prefixB = fp(tmp, sd, base, Bh)
+    doc = base_doc(base, head, sfp, r1=prefixB)
+    doc["review_1"]["covers_through_task"] = "B"
+    doc["tasks"] = [
+        {"id": "A", "base_sha": base, "head_sha": Ah, "diff_fingerprint": fp(tmp, sd, base, Ah)},
+        {"id": "B", "base_sha": Ah, "head_sha": Bh, "diff_fingerprint": fp(tmp, sd, Ah, Bh)},
+        {"id": "C", "base_sha": Bh, "head_sha": head, "diff_fingerprint": fp(tmp, sd, Bh, head)},
+    ]
+    doc["authorized_exceptions"] = [exc("review_1", sfp), exc("task:C", sfp)]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def c6b():
+    tmp, shas, sd = setup(3); base, Ah, Bh, head = shas[0], shas[1], shas[2], shas[3]
+    sfp = fp(tmp, sd, base, head); prefixB = fp(tmp, sd, base, Bh)
+    doc = base_doc(base, head, sfp, r1=prefixB)
+    doc["review_1"]["covers_through_task"] = "B"
+    doc["tasks"] = [
+        {"id": "A", "base_sha": base, "head_sha": Ah, "diff_fingerprint": fp(tmp, sd, base, Ah)},
+        {"id": "B", "base_sha": base, "head_sha": Bh, "diff_fingerprint": fp(tmp, sd, base, Bh)},
+        {"id": "C", "base_sha": Bh, "head_sha": head, "diff_fingerprint": fp(tmp, sd, Bh, head)},
+    ]
+    doc["authorized_exceptions"] = [exc("review_1", sfp), exc("task:C", sfp)]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def c7a():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp)
+    doc["tasks"] = [{"id": "A", "base_sha": base, "head_sha": head, "diff_fingerprint": sfp}]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def c7b():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp)
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+# ----- rework-1 adversarial cases -----
+
+def f1_task_only():
+    tmp, shas, sd = setup(2); base, Ah, head = shas[0], shas[1], shas[2]
+    sfp = fp(tmp, sd, base, head); fpA = fp(tmp, sd, base, Ah)
+    doc = base_doc(base, head, sfp)
+    doc["tasks"] = [
+        {"id": "A", "owner": "claude_glm", "base_sha": base, "head_sha": Ah, "diff_fingerprint": fpA,
+         "review_1": {"reviewer": "codex", "provider": "codex", "model": "gpt",
+                      "verdict": "ACCEPT", "json_schema_valid": True, "diff_fingerprint": fpA}},
+        {"id": "B", "owner": "claude_glm", "base_sha": Ah, "head_sha": head,
+         "diff_fingerprint": fp(tmp, sd, Ah, head)},
+    ]
+    doc["authorized_exceptions"] = [exc("task:B", sfp)]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def f2_fabricated():
+    tmp, shas, sd = setup(2); base, Ah, head = shas[0], shas[1], shas[2]
+    sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp)
+    doc["tasks"] = [
+        {"id": "A", "base_sha": base, "head_sha": Ah, "diff_fingerprint": fp(tmp, sd, base, Ah)},
+        {"id": "B", "owner": "claude_glm", "base_sha": Ah, "head_sha": head,
+         "diff_fingerprint": fp(tmp, sd, Ah, head),
+         "review_1": {"diff_fingerprint": "x"}},
+    ]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def f3_absolute():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp, evidence="/etc/hosts"), exc("review_2", sfp, evidence="/etc/hosts")]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def f3_escape():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp, evidence="../../../../etc/passwd"), exc("review_2", sfp, evidence="../../../../etc/passwd")]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def f3_digest():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp, sha="0" * 64), exc("review_2", sfp, sha="0" * 64)]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def f3_empty():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp), exc("review_2", sfp)]
+    write_and_commit(tmp, doc, waiver_text=""); return run_validator(tmp)
+
+def f4_raw():
+    tmp, shas, sd = setup(3); base, Ah, Bh, head = shas[0], shas[1], shas[2], shas[3]
+    sfp = fp(tmp, sd, base, head); prefixB = fp(tmp, sd, base, Bh)
+    doc = base_doc(base, head, sfp, r1=prefixB)
+    doc["review_1"]["covers_through_task"] = "B"
+    doc["tasks"] = [
+        {"id": "A", "base_sha": base, "head_sha": Ah, "diff_fingerprint": fp(tmp, sd, base, Ah)},
+        {"id": "B", "base_sha": Ah, "head_sha": Bh, "diff_fingerprint": fp(tmp, sd, Ah, Bh)},
+        {"id": "C", "base_sha": Bh, "head_sha": head, "diff_fingerprint": fp(tmp, sd, Bh, head)},
+    ]
+    doc["authorized_exceptions"] = [exc("review_1", sfp), exc("C", sfp)]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def f4_dup():
+    tmp, shas, sd = setup(2); base, Ah, head = shas[0], shas[1], shas[2]
+    sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp)
+    doc["tasks"] = [
+        {"id": "A", "base_sha": base, "head_sha": Ah, "diff_fingerprint": fp(tmp, sd, base, Ah)},
+        {"id": "A", "base_sha": Ah, "head_sha": head, "diff_fingerprint": fp(tmp, sd, Ah, head)},
+    ]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def f4_missing():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp)
+    doc["tasks"] = [{"base_sha": base, "head_sha": head, "diff_fingerprint": sfp}]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def p2_reason():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp, reason=""), exc("review_2", sfp, reason="")]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def p2_at():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp, at="not-a-date"), exc("review_2", sfp, at="not-a-date")]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def class2():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["review_2"]["verdict"] = "REWORK"
+    doc["authorized_exceptions"] = [exc("review_1", sfp), exc("review_2", sfp)]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def identity():
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp)
+    doc["review_2"]["provider"] = "claude_glm"; doc["review_2"]["reviewer"] = "claude_glm"
+    doc["review_2"]["model"] = "glm52"
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+
+CASES = [
+    ("1. compliant class-1 -> PASS + banner", c1, 0),
+    ("2. missing evidence_file -> FAIL", c2, 1),
+    ("3. applies_to_fingerprint pin -> FAIL", c3, 1),
+    ("4. authorizer != user -> FAIL", c4, 1),
+    ("5. negative-list #1 tampered fp -> FAIL", c5, 1),
+    ("6a. D3 chain ok (prefix->B, task:C) -> PASS, banner has task:C", c6a, 0),
+    ("6b. D3 chain broken -> FAIL", c6b, 1),
+    ("7a. single task -> PASS (degenerate)", c7a, 0),
+    ("7b. tasks absent -> PASS (degenerate)", c7b, 0),
+    ("REG. baseline single-task -> PASS", c7a, 0),
+    ("F1. task-only exception -> PASS, banner shows task:B", f1_task_only, 0),
+    ("F2. fabricated task review -> FAIL", f2_fabricated, 1),
+    ("F3-abs. absolute evidence path -> FAIL", f3_absolute, 1),
+    ("F3-esc. ../ escape evidence -> FAIL", f3_escape, 1),
+    ("F3-dig. evidence_sha256 mismatch -> FAIL", f3_digest, 1),
+    ("F3-empty. empty evidence blob -> FAIL", f3_empty, 1),
+    ("F4-raw. raw-id task scope -> FAIL", f4_raw, 1),
+    ("F4-dup. duplicate task id -> FAIL", f4_dup, 1),
+    ("F4-miss. missing task id -> FAIL", f4_missing, 1),
+    ("P2-r. missing reason -> FAIL", p2_reason, 1),
+    ("P2-a. non-ISO at -> FAIL", p2_at, 1),
+    ("CL2. class-2 verdict REWORK + exception -> FAIL", class2, 1),
+    ("ID. review_2 same provider as implementer -> FAIL", identity, 1),
+]
+
+
+def main():
+    all_ok = True
+    for label, fn, expected in CASES:
+        rc, out = fn()
+        ok = rc == expected
+        all_ok = all_ok and ok
+        print(f"\n===== {label}  [expect exit={expected}, got {rc}] {'OK' if ok else 'UNEXPECTED'} =====")
+        print(out)
+    print("\n===== SUMMARY =====")
+    print("ALL CASES AS EXPECTED" if all_ok else "SOME CASES UNEXPECTED")
+
+
+if __name__ == "__main__":
+    main()
+
+----------------------------------------------------------------
+本地北京时间: 2026-07-17 13:59:02 CST
+下一步模型: bookkeeper(Claude Opus 4.8)
+下一步任务: 提交 rework-1 改动(validate-stage.py / _template / AGENTS.md / harness-design.md)、重算 diff_fingerprint、跑 validator pre-accept、重进 review-1(Kimi)
+
+================================================================
+E.1 R4 补丁段(bookkeeper R4 对账后的两处模板默认值修正;2026-07-17)
+    修复者: claude_glm(zhipu_glm)| 不 commit | E 段原证据保留不动
+================================================================
+
+bookkeeper R4 对账逮到 rework-1 引入的两处模板默认值回归——E 段 23 用例都自造
+status.json,没测模板默认路径,漏了。本段续修两点,不动 E 段已修好的部分。
+
+R-A(根因: 35-dispatch "示例项加 evidence_sha256" 措辞误导——模板的
+   authorized_exceptions 原本是空数组、无示例项):reports/agent-runs/_template/
+   status.json 的 authorized_exceptions 由全-null 占位记录改回空数组 []。全-null
+   占位会让任何用模板默认值的 stage 在 pre-accept 报 7 条 authorized_exceptions[0].*
+   错。记录字段形状(含 evidence_sha256)已在 10-design §2 JSON 块 +
+   AGENTS.md/harness-design.md 文档化;模板不带活示例(JSON 无注释)。**保留** E 段
+   对 tasks[] 删 covers_through_task 的改动。
+R-B:_task_id_errors 开头加 `if len(tasks) < 2: return []`(并更新 docstring)。id
+   只在 task-scope 覆盖/dispatch(>=2 真任务)时有意义;单任务退化/占位(模板与本
+   stage status.json 都带 null-id 占位)不再误红 pre-accept。>=2 仍强制 id 非空唯一
+   (finding-4 不削弱;validate_dispatch_ready 本就要求 >=2 task objects)。
+
+命令(E 段命令不变,套件重建为 25 用例):
+  python3 -m py_compile scripts/validate-stage.py
+  python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase checkpoint
+  python3 /tmp/rc4_rework_test.py        # 临时脚本,R4 重建为 25 用例,源码见下
+
+----- py_compile + checkpoint(R4 后,零回归)-----
+$ python3 -m py_compile scripts/validate-stage.py && echo COMPILE_OK
+COMPILE_OK
+
+$ python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase checkpoint
+STAGE VALIDATION PASSED
+stage=reports/agent-runs/2026-07-harness-authorized-exception-v1
+phase=checkpoint
+status=implementing
+diff_fingerprint=941416345c92bf3c42556e0d9178f28e1384b4e6:5b28d88ce253d6d41f9c5841cfe51265a66e132c8fe7556d1177da4404b186f0
+exit=0
+
+----- R4 调整/新增用例输出(3 例,关键证据)-----
+$ python3 /tmp/rc4_rework_test.py   # 仅摘 R4 相关 3 例;其余 22 例与 E 段一致
+
+===== F4-miss. multi-task missing id -> FAIL (R4: >=2 still enforced)  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- tasks[1].id must be a non-empty string
+- tasks[1].id must be a non-empty string
+- tasks[1].id must be a non-empty string
+# 注:2 个真任务,第二个缺 id -> >=2 仍强制 id 非空(finding-4 不削弱);报 3 次因
+# pre-accept 路径上 _task_id_errors 被 validate_tasks / validate_task_coverage /
+# (及合并的 acceptance 链)调用。
+
+===== F4-sgl. single null-id task -> PASS (R4: <2 exempt)  [expect exit=0, got 0] OK =====
+STAGE VALIDATION PASSED
+stage=reports/agent-runs/test-stage
+phase=pre-accept
+status=accepted
+diff_fingerprint=783a4e64a436d71fdf21d7ecbbe6b02885c008d2:f2abce1d812cc595302526af40b0085b636badc658e32e5f0d5b76bf4b387b9c
+# 注:单个无 id 任务 -> <2 短路,id 不再校验;模板与本 stage 的 null-id 占位不再误红。
+
+===== TPL. template defaults (null-id task + []) -> no error (R4 R-A+R-B)  [expect exit=0, got 0] OK =====
+template authorized_exceptions = []
+template tasks[0].id = None
+validate_tasks errors = []
+validate_authorized_exceptions errors = [] (valid_exceptions=[])
+# 注:直接加载修复后的 reports/agent-runs/_template/status.json 默认值,调
+# validate_tasks / validate_authorized_exceptions -> 双双零 error。证明 R-A(模板
+# authorized_exceptions=[])+ R-B(单 null-id 占位)组合:模板默认不再破 pre-accept。
+# 若 R-A 未修(全-null 占位),validate_authorized_exceptions 会报 7 条
+# authorized_exceptions[0].* 错;若 R-B 未修,validate_tasks 会报
+# tasks[0].id must be a non-empty string。
+
+===== SUMMARY =====
+ALL CASES AS EXPECTED
+
+----- 25 用例结果摘要(全 OK;✦ = R4 新增/调整)-----
+  1.  compliant class-1       -> PASS   0/0  OK
+  2.  missing evidence_file   -> FAIL   1/1  OK
+  3.  applies_to_fingerprint  -> FAIL   1/1  OK
+  4.  authorizer != user      -> FAIL   1/1  OK
+  5.  tampered fp (neg-list#1)-> FAIL   1/1  OK
+  6a. D3 chain ok             -> PASS   0/0  OK
+  6b. D3 chain broken         -> FAIL   1/1  OK
+  7a. single task (degenerate)-> PASS   0/0  OK
+  7b. tasks absent            -> PASS   0/0  OK
+  REG baseline single-task    -> PASS   0/0  OK
+  F1. task-only exception     -> PASS   0/0  OK
+  F2. fabricated task review  -> FAIL   1/1  OK
+  F3-abs absolute evidence    -> FAIL   1/1  OK
+  F3-esc ../ escape           -> FAIL   1/1  OK
+  F3-dig evidence_sha256 mm   -> FAIL   1/1  OK
+  F3-empty empty blob         -> FAIL   1/1  OK
+  F4-raw raw-id scope         -> FAIL   1/1  OK
+  F4-dup duplicate task id    -> FAIL   1/1  OK
+✦F4-miss multi-task missing id -> FAIL 1/1  OK   (原单任务缺id→现多任务,保留缺id→FAIL)
+✦F4-sgl single null-id task    -> PASS 0/0  OK   (R4 新增:证明 <2 豁免)
+✦TPL   template defaults       -> -    0/0  OK   (R4 新增:模板默认不破 pre-accept)
+  P2-r missing reason        -> FAIL   1/1  OK
+  P2-a non-ISO at            -> FAIL   1/1  OK
+  CL2 class-2 REWORK+except  -> FAIL   1/1  OK
+  ID  review_2 same provider -> FAIL   1/1  OK
+
+----- R4 脚手架源码:新增/改动的 3 个 case(其余同 E 段;临时,不在交付树)-----
+
+def f4_missing():
+    """R4: finding-4 id enforcement now applies to >=2 real tasks. A missing id
+    among 2 tasks still FAILs (id uniqueness/non-empty not weakened)."""
+    tmp, shas, sd = setup(2); base, Ah, head = shas[0], shas[1], shas[2]
+    sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp)
+    doc["tasks"] = [
+        {"id": "A", "base_sha": base, "head_sha": Ah, "diff_fingerprint": fp(tmp, sd, base, Ah)},
+        {"base_sha": Ah, "head_sha": head, "diff_fingerprint": fp(tmp, sd, Ah, head)},  # missing id
+    ]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def f4_single():
+    """R4: a single task with no id is no longer an error (id only matters for
+    >=2 real tasks). The template + single-task stages carry a null-id
+    placeholder and must not false-fail pre-accept."""
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp)
+    doc["tasks"] = [{"base_sha": base, "head_sha": head, "diff_fingerprint": sfp}]  # single, no id
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def template_defaults():
+    """R4 (R-A + R-B): the template's own defaults — a null-id placeholder task
+    and authorized_exceptions == [] — must NOT error in validate_tasks /
+    validate_authorized_exceptions (no false pre-accept failure). Calls the
+    functions directly (template base/head/reviews are null, so a full
+    pre-accept is not meaningful here)."""
+    tmpl_path = Path(REPO) / "reports/agent-runs/_template/status.json"
+    doc = json.loads(tmpl_path.read_text())
+    root = Path(REPO)
+    stage_dir = tmpl_path.parent
+    t_errs = vs.validate_tasks(root, stage_dir, doc, None)
+    a_errs, a_valid = vs.validate_authorized_exceptions(root, stage_dir, doc)
+    combined = list(t_errs) + list(a_errs)
+    out = (f"template authorized_exceptions = {doc.get('authorized_exceptions')!r}\n"
+           f"template tasks[0].id = {doc['tasks'][0].get('id')!r}\n"
+           f"validate_tasks errors = {t_errs}\n"
+           f"validate_authorized_exceptions errors = {a_errs} (valid_exceptions={a_valid})")
+    return (0 if not combined else 1), out
+
+# CASES 里对应的 3 行(替换 E 段原 F4-miss 行 + 新增 2 行):
+    ("F4-miss. multi-task missing id -> FAIL (R4: >=2 still enforced)", f4_missing, 1),
+    ("F4-sgl. single null-id task -> PASS (R4: <2 exempt)", f4_single, 0),
+    ("TPL. template defaults (null-id task + []) -> no error (R4 R-A+R-B)", template_defaults, 0),
+
+----------------------------------------------------------------
+本地北京时间: 2026-07-17 14:41:23 CST
+下一步模型: bookkeeper(Claude Opus 4.8)
+下一步任务: 提交 rework-1 改动(含 R4 两处模板默认值修正:模板 authorized_exceptions
+回 []、_task_id_errors <2 短路)、重算 diff_fingerprint、跑 validator pre-accept、
+重进 review-1(Kimi)→ review-2(Codex)

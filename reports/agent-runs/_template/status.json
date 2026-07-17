@@ -44,7 +44,6 @@
       "base_sha": null,
       "head_sha": null,
       "diff_fingerprint": null,
-      "covers_through_task": null,
       "test_evidence": null,
       "review_1": {
         "reviewer": null,

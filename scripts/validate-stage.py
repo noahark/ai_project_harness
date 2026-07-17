@@ -9,6 +9,7 @@ inventing status values or fingerprint protocols.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import hashlib
 import json
 import re
@@ -250,6 +251,36 @@ def normalize_tasks(status_doc: dict[str, Any]) -> tuple[list[Any], list[str]]:
                 normalized.append({"id": str(key), "_invalid_task_value": value})
         return normalized, []
     return [], ["tasks must be a list or object when present"]
+
+
+def _task_id_errors(tasks: list[Any]) -> list[str]:
+    """finding-4: task ids must be non-empty and unique. A duplicate or missing
+    id makes task-scope exceptions ambiguous. Called explicitly by the task
+    consumers (validate_tasks / validate_task_coverage / validate_dispatch_ready)
+    rather than normalize_tasks, so non-task phases (e.g. checkpoint via
+    validate_parallel_mode) do not surface it on inherited template placeholder
+    tasks.
+
+    R4: a single task (or none) carries no scope-disambiguation risk, so id is
+    only enforced for >=2 real tasks. This also keeps the template's null-id
+    placeholder task and any single-task stage from false-failing pre-accept;
+    dispatch_ready separately requires >=2 task objects."""
+    if len(tasks) < 2:
+        return []
+    errors: list[str] = []
+    seen: set[str] = set()
+    for idx, task in enumerate(tasks):
+        if not isinstance(task, dict):
+            continue
+        tid = task.get("id")
+        if not _nonempty_string(tid):
+            errors.append(f"tasks[{idx}].id must be a non-empty string")
+            continue
+        key = str(tid)
+        if key in seen:
+            errors.append(f"duplicate task id: {key}")
+        seen.add(key)
+    return errors
 
 
 def task_map(status_doc: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -568,6 +599,7 @@ def validate_dispatch_ready(root: Path, stage_dir: Path, status_doc: dict[str, A
 
     tasks, task_shape_errors = normalize_tasks(status_doc)
     errors.extend(task_shape_errors)
+    errors.extend(_task_id_errors(tasks))
     object_tasks = [task for task in tasks if isinstance(task, dict)]
     if len(object_tasks) < 2:
         errors.append("parallel dispatch-ready requires at least two task objects")
@@ -772,7 +804,9 @@ def validate_tasks(root: Path, stage_dir: Path, status_doc: dict[str, Any], task
     errors: list[str] = []
     tasks, task_shape_errors = normalize_tasks(status_doc)
     errors.extend(task_shape_errors)
-    if task_shape_errors:
+    id_errors = _task_id_errors(tasks)
+    errors.extend(id_errors)
+    if task_shape_errors or id_errors:
         return errors
 
     selected = tasks
@@ -810,20 +844,78 @@ def validate_tasks(root: Path, stage_dir: Path, status_doc: dict[str, Any], task
     return errors
 
 
-def _evidence_file_nonempty(root: Path, stage_dir: Path, value: Any) -> bool:
-    """Return True if the evidence path resolves to a non-empty file.
+def _valid_iso8601(value: Any) -> bool:
+    """Return True if value parses as an ISO-8601 timestamp (P2-1)."""
+    if not _nonempty_string(value):
+        return False
+    text = str(value).strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        datetime.fromisoformat(text)
+        return True
+    except ValueError:
+        return False
 
-    evidence_path_exists only checks existence; RC4 additionally requires the
-    user authorization evidence to carry content (negative-list #4)."""
-    path = Path(str(value))
-    candidates = [path] if path.is_absolute() else [root / path, stage_dir / path]
-    for candidate in candidates:
-        if candidate.is_file():
-            try:
-                return len(candidate.read_text(encoding="utf-8", errors="replace").strip()) > 0
-            except OSError:
-                return False
-    return False
+
+def _evidence_committed_blob(root: Path, evidence_file: str, head_sha: str) -> bytes | None:
+    """Return the committed blob bytes for evidence_file at head_sha, else None.
+
+    RC4 (finding-3) reads COMMITTED content via `git show <HEAD>:<path>`, not the
+    worktree: an untracked file, or a file changed after its sealing commit,
+    cannot pose as authorization evidence. Self-contained — does NOT touch the
+    shared evidence_path_exists (:363) used by other callers."""
+    if not head_sha:
+        return None
+    result = subprocess.run(
+        ["git", "show", f"{head_sha}:{evidence_file}"],
+        cwd=root,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _validate_exception_evidence(
+    root: Path, evidence_file: str, record: dict[str, Any], head_sha: str, prefix: str
+) -> list[str]:
+    """finding-3 hardened evidence check. Returns errors (negative-list #4/#5,
+    fail-closed). 1) reject absolute paths; 2) resolved path must stay inside the
+    repo root (escape protection); 3) must be git-tracked via a committed blob;
+    4) committed blob must be non-empty; 5) digest seal — record.evidence_sha256
+    must equal sha256 of the committed blob. Deliberately NOT bound to
+    status.head_sha (post-head evidence is legal once tracked + digest-matched),
+    avoiding the head/post-head ordering deadlock (design §2.1)."""
+    errors: list[str] = []
+    path = Path(evidence_file)
+    if path.is_absolute():
+        errors.append(f"{prefix}.evidence_file must be repo-relative, got absolute path: {evidence_file}")
+        return errors
+    try:
+        (root / path).resolve().relative_to(root.resolve())
+    except ValueError:
+        errors.append(f"{prefix}.evidence_file escapes repository root: {evidence_file}")
+        return errors
+    blob = _evidence_committed_blob(root, evidence_file, head_sha)
+    if blob is None:
+        short = head_sha[:12] if head_sha else "<no-commit>"
+        errors.append(f"{prefix}.evidence_file is not committed/tracked at {short}: {evidence_file}")
+        return errors
+    if not blob.strip():
+        errors.append(f"{prefix}.evidence_file committed blob must be non-empty: {evidence_file}")
+        return errors
+    actual = hashlib.sha256(blob).hexdigest()
+    digest_field = record.get("evidence_sha256")
+    if not _nonempty_string(digest_field):
+        errors.append(f"{prefix}.evidence_sha256 is required (sha256 of committed evidence blob)")
+    elif str(digest_field).strip().lower() != actual:
+        errors.append(
+            f"{prefix}.evidence_sha256 mismatch: recorded={str(digest_field).strip()}, expected={actual}"
+        )
+    return errors
 
 
 def _resolve_task(tasks: list[Any], ref: Any) -> dict[str, Any] | None:
@@ -865,6 +957,10 @@ def validate_authorized_exceptions(
         return ["authorized_exceptions must be a list when present"], []
 
     status_fingerprint = status_doc.get("diff_fingerprint")
+    try:
+        head_sha = str(run(["git", "rev-parse", "HEAD"], cwd=root)).strip()
+    except ValidationError:
+        head_sha = ""
     errors: list[str] = []
     valid: list[dict[str, Any]] = []
 
@@ -883,9 +979,15 @@ def validate_authorized_exceptions(
             )
             record_ok = False
 
-        # Structural anti-self-authorization: only the literal "user" is accepted.
-        # A model cannot grant its own waiver because the verbatim authorization
-        # text can only originate from a user message.
+        # Only the literal "user" is accepted — one layer of an anti-silent-
+        # self-grant design (see AGENTS.md / docs/harness-design.md). Combined
+        # with the pinned fingerprint and committed+digest-sealed evidence, a
+        # forged waiver must commit fabricated authorization text into reviewed
+        # git history and surface in the PASS-with-exception banner. This does
+        # NOT prove the evidence originated from a human (any bytes a model can
+        # write, a model can write); the final guarantee is mandatory human
+        # verification of the evidence text before pre-accept release — a
+        # workflow obligation the validator cannot mechanically enforce.
         if record.get("authorizer") != "user":
             errors.append(f"{prefix}.authorizer must be the literal 'user'")
             record_ok = False
@@ -907,16 +1009,26 @@ def validate_authorized_exceptions(
             )
             record_ok = False
 
+        # P2-1: audit rationale and timestamp are part of structural integrity
+        # (negative-list #5); fail-closed.
+        if not _nonempty_string(record.get("reason")):
+            errors.append(f"{prefix}.reason must be a non-empty string")
+            record_ok = False
+        if not _valid_iso8601(record.get("at")):
+            errors.append(f"{prefix}.at must be a parseable ISO-8601 timestamp")
+            record_ok = False
+
         evidence_file = record.get("evidence_file")
         if not _nonempty_string(evidence_file):
-            errors.append(f"{prefix}.evidence_file must be a non-empty string path")
+            errors.append(f"{prefix}.evidence_file must be a non-empty repo-relative path")
             record_ok = False
-        elif not evidence_path_exists(root, stage_dir, evidence_file):
-            errors.append(f"{prefix}.evidence_file does not exist: {evidence_file}")
-            record_ok = False
-        elif not _evidence_file_nonempty(root, stage_dir, evidence_file):
-            errors.append(f"{prefix}.evidence_file must be non-empty: {evidence_file}")
-            record_ok = False
+        else:
+            ev_errors = _validate_exception_evidence(
+                root, str(evidence_file), record, head_sha, prefix
+            )
+            if ev_errors:
+                errors.extend(ev_errors)
+                record_ok = False
 
         if record_ok:
             valid.append(record)
@@ -945,23 +1057,88 @@ def _exception_covering_review(
     return None
 
 
+def _task_own_review_covers(
+    root: Path, stage_dir: Path, task: dict[str, Any]
+) -> tuple[bool, str | None]:
+    """Classify a task's nested review_1 for D3 coverage (finding-2).
+
+    Returns (covered, error). A task own-review satisfies coverage ONLY when it
+    is complete and valid: identified reviewer/provider/model, verdict ACCEPT,
+    json_schema_valid true, cross-provider separation from the task
+    owner/implementer, and review.diff_fingerprint equal to the recomputed task
+    diff_fingerprint. An arbitrary non-empty string or incomplete object is a
+    fabricated review and MUST fail (error set). When no review is claimed
+    (absent, or no diff_fingerprint), returns (False, None) so the caller falls
+    back to a task-scoped authorized_exception."""
+    review = task.get("review_1")
+    if not isinstance(review, dict) or not _nonempty_string(review.get("diff_fingerprint")):
+        return False, None
+    task_id = task.get("id", "?")
+    prefix = f"task {task_id} review_1"
+    for field in ("reviewer", "provider", "model"):
+        if not _nonempty_string(review.get(field)):
+            return False, f"{prefix}.{field} must be a non-empty string for a task own-review"
+    if review.get("verdict") != "ACCEPT":
+        return False, f"{prefix}.verdict must be ACCEPT for a task own-review"
+    if not truthy(review.get("json_schema_valid")):
+        return False, f"{prefix}.json_schema_valid must be true for a task own-review"
+    owner_identity = provider_identity(task.get("owner") or task.get("implementer"))
+    reviewer_identity = review_provider_identity(review)
+    if owner_identity and reviewer_identity and owner_identity == reviewer_identity:
+        return False, f"{prefix} provider identity must differ from task owner/implementer provider identity"
+    base = task.get("base_sha")
+    head = task.get("head_sha")
+    if base and head:
+        try:
+            expected = compute_diff_fingerprint(root, stage_dir, str(base), str(head))
+            if review.get("diff_fingerprint") != expected:
+                return False, (
+                    f"{prefix}.diff_fingerprint must equal recomputed task diff_fingerprint: "
+                    f"recorded={review.get('diff_fingerprint')}, expected={expected}"
+                )
+        except ValidationError as exc:
+            return False, f"{prefix} task fingerprint could not be recomputed: {exc}"
+    return True, None
+
+
+def _exception_covering_task(
+    valid_exceptions: list[dict[str, Any]], task_id: Any
+) -> dict[str, Any] | None:
+    """Return the first valid class-1 exception scoped to exactly task:<task_id>
+    (finding-4). Only the CANONICAL `task:<id>` scope is accepted — no raw-id
+    alias — and the assertion_id must be review_fingerprint_trails_status. This
+    keeps a review-scoped or raw-id-scoped waiver from silently widening to a
+    task, and makes one exception unable to cover two tasks."""
+    canonical = f"task:{task_id}"
+    for record in valid_exceptions:
+        if record.get("assertion_id") != "review_fingerprint_trails_status":
+            continue
+        if record.get("scope") == canonical:
+            return record
+    return None
+
+
 def validate_task_coverage(
     root: Path, stage_dir: Path, status_doc: dict[str, Any]
-) -> list[str]:
+) -> tuple[list[str], list[dict[str, str]]]:
     """RC4 D3: task-level fingerprint coverage via chain + prefix.
 
-    Degenerate cases (no tasks, or a single task) return [] and preserve the
-    current single-fingerprint behavior exactly. Multi-task stages require the
-    task chain to tile base..head, each review's diff_fingerprint to match the
-    recomputed prefix up to its covers_through_task, and every task beyond the
-    covered prefix to have its own review record or a class-1 exception.
-    """
+    Returns (errors, task_applied_exceptions). Degenerate cases (no tasks, or a
+    single task) return ([], []) and preserve the current single-fingerprint
+    behavior exactly. Multi-task stages require the task chain to tile
+    base..head, each review's diff_fingerprint to match the recomputed prefix up
+    to its covers_through_task, and every task beyond the covered prefix to have
+    a complete own review (finding-2) or a canonical task:<id> class-1 exception
+    (finding-4). Every task exception actually relied upon is returned so the
+    caller can surface it in the PASS-with-exception banner (finding-1)."""
     errors: list[str] = []
+    applied: list[dict[str, str]] = []
     tasks, task_shape_errors = normalize_tasks(status_doc)
-    if task_shape_errors:
-        return task_shape_errors
+    id_errors = _task_id_errors(tasks)
+    if task_shape_errors or id_errors:
+        return task_shape_errors + id_errors, []
     if len(tasks) <= 1:
-        return errors  # degenerate: 0 or 1 task preserves current behavior exactly
+        return errors, applied  # degenerate: 0 or 1 task preserves current behavior exactly
 
     status_base = status_doc.get("base_sha")
     status_head = status_doc.get("head_sha")
@@ -991,7 +1168,7 @@ def validate_task_coverage(
         )
         chain_ok = False
     if not chain_ok:
-        return errors
+        return errors, applied
 
     # Exceptions are validated (and their structural errors surfaced) by
     # validate_acceptance. Here we only consume the valid subset to decide
@@ -1029,22 +1206,29 @@ def validate_task_coverage(
         if not isinstance(task, dict) or idx in covered_indices:
             continue
         task_id = task.get("id", f"[{idx}]")
-        own_review = task.get("review_1")
-        has_own_review = isinstance(own_review, dict) and _nonempty_string(
-            own_review.get("diff_fingerprint")
-        )
-        scope_matches = any(
-            _nonempty_string(exc.get("scope"))
-            and exc.get("scope") in (f"task:{task_id}", str(task_id))
-            for exc in valid_exceptions
-        )
-        if not has_own_review and not scope_matches:
+        own_ok, own_err = _task_own_review_covers(root, stage_dir, task)
+        if own_err is not None:
+            # A claimed-but-incomplete task review is a fabrication (finding-2);
+            # it cannot be rescued by a task exception.
+            errors.append(own_err)
+            continue
+        if own_ok:
+            continue  # covered by a complete, valid own review
+        covering = _exception_covering_task(valid_exceptions, task_id)
+        if covering is None:
             errors.append(
-                f"uncovered task {task_id}: needs its own review record or a class-1 "
-                f"authorized_exception scoped to this task"
+                f"uncovered task {task_id}: needs a complete own review or a class-1 "
+                f"authorized_exception scoped to task:{task_id}"
+            )
+        else:
+            applied.append(
+                {
+                    "assertion_id": str(covering.get("assertion_id")),
+                    "scope": str(covering.get("scope")),
+                }
             )
 
-    return errors
+    return errors, applied
 
 
 def validate_acceptance(
@@ -1093,6 +1277,22 @@ def validate_acceptance(
     return errors, applied_exceptions
 
 
+def _merge_applied(*streams: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Deduplicate applied exceptions by (assertion_id, scope), preserving first
+    occurrence. finding-1: every review- and task-scoped exception actually used
+    to obtain PASS is surfaced in the banner, never silently."""
+    seen: set[tuple[str, str]] = set()
+    merged: list[dict[str, str]] = []
+    for stream in streams:
+        for entry in stream:
+            key = (str(entry.get("assertion_id")), str(entry.get("scope")))
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append({"assertion_id": key[0], "scope": key[1]})
+    return merged
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate an AI Project Harness stage")
     parser.add_argument("stage", help="stage id or path under reports/agent-runs")
@@ -1127,9 +1327,11 @@ def main() -> int:
             if args.phase == "pre-review":
                 errors.extend(validate_review_identity(root, stage_dir, status_doc))
         if args.phase == "pre-accept":
-            acc_errors, applied_exceptions = validate_acceptance(root, stage_dir, status_doc)
+            acc_errors, acc_applied = validate_acceptance(root, stage_dir, status_doc)
             errors.extend(acc_errors)
-            errors.extend(validate_task_coverage(root, stage_dir, status_doc))
+            cov_errors, cov_applied = validate_task_coverage(root, stage_dir, status_doc)
+            errors.extend(cov_errors)
+            applied_exceptions = _merge_applied(acc_applied, cov_applied)
 
         if errors:
             print("STAGE VALIDATION FAILED")
