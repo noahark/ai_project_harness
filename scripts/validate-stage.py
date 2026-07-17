@@ -879,6 +879,36 @@ def _evidence_committed_blob(root: Path, evidence_file: str, head_sha: str) -> b
     return result.stdout
 
 
+def _evidence_object_mode_and_type(
+    root: Path, evidence_file: str, head_sha: str
+) -> tuple[str, str] | None:
+    """Return (mode, type) of the git tree entry for evidence_file at head_sha,
+    or None if the path is not tracked at that commit. finding-2 (rework-2):
+    evidence must be a REGULAR FILE blob; trees, symlinks (mode 120000),
+    submodules (mode 160000), and other non-regular modes are rejected before
+    any bytes are hashed. A symlink shares git object type 'blob' with a regular
+    file, so the entry MODE (not cat-file type) is what distinguishes them.
+    Self-contained — does not touch the shared evidence_path_exists."""
+    if not head_sha:
+        return None
+    result = subprocess.run(
+        ["git", "ls-tree", head_sha, "--", evidence_file],
+        cwd=root,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    # format per line: "<mode> <type> <hash>\t<path>"
+    first_line = result.stdout.strip().splitlines()[0]
+    parts = first_line.split()
+    if len(parts) < 2:
+        return None
+    return parts[0], parts[1]
+
+
 def _validate_exception_evidence(
     root: Path, evidence_file: str, record: dict[str, Any], head_sha: str, prefix: str
 ) -> list[str]:
@@ -898,6 +928,18 @@ def _validate_exception_evidence(
         (root / path).resolve().relative_to(root.resolve())
     except ValueError:
         errors.append(f"{prefix}.evidence_file escapes repository root: {evidence_file}")
+        return errors
+    mode_type = _evidence_object_mode_and_type(root, evidence_file, head_sha)
+    if mode_type is None:
+        short = head_sha[:12] if head_sha else "<no-commit>"
+        errors.append(f"{prefix}.evidence_file is not committed/tracked at {short}: {evidence_file}")
+        return errors
+    mode, otype = mode_type
+    if mode not in ("100644", "100755") or otype != "blob":
+        errors.append(
+            f"{prefix}.evidence_file must be a regular file blob (mode 100644/100755, type blob), "
+            f"got mode {mode} type {otype}: {evidence_file}"
+        )
         return errors
     blob = _evidence_committed_blob(root, evidence_file, head_sha)
     if blob is None:
@@ -1082,9 +1124,35 @@ def _task_own_review_covers(
         return False, f"{prefix}.verdict must be ACCEPT for a task own-review"
     if not truthy(review.get("json_schema_valid")):
         return False, f"{prefix}.json_schema_valid must be true for a task own-review"
+    # finding-1 (rework-2): task own-review isolation is PROVIDER-AUTHORITATIVE.
+    # The reviewer label must NOT override the declared provider — previously
+    # review_provider_identity() tried `reviewer` before `provider`, so an
+    # arbitrary unregistered reviewer string masked a same-provider self-review
+    # (round-2 finding-1). The global review_provider_identity() and the
+    # identity-separation main gate (validate_review_identity) are deliberately
+    # untouched; this is a task-specific strict resolution that does not leak
+    # into the main review identity gate.
     owner_identity = provider_identity(task.get("owner") or task.get("implementer"))
-    reviewer_identity = review_provider_identity(review)
-    if owner_identity and reviewer_identity and owner_identity == reviewer_identity:
+    if not owner_identity:
+        return False, (
+            f"{prefix} task owner/implementer provider must be a recognized, "
+            f"non-empty provider to establish cross-provider isolation for a task own-review"
+        )
+    declared_provider = provider_identity(review.get("provider"))
+    if not declared_provider:
+        return False, (
+            f"{prefix}.provider must be a recognized, non-empty provider for a task own-review "
+            f"(a reviewer label alone cannot establish provider identity)"
+        )
+    reviewer_label = str(review.get("reviewer", "")).strip()
+    if reviewer_label and reviewer_label in PROVIDER_IDENTITIES:
+        reviewer_provider = PROVIDER_IDENTITIES[reviewer_label]
+        if reviewer_provider != declared_provider:
+            return False, (
+                f"{prefix}.reviewer alias {reviewer_label!r} resolves to provider "
+                f"{reviewer_provider!r}, conflicting with declared .provider {declared_provider!r}"
+            )
+    if owner_identity == declared_provider:
         return False, f"{prefix} provider identity must differ from task owner/implementer provider identity"
     base = task.get("base_sha")
     head = task.get("head_sha")

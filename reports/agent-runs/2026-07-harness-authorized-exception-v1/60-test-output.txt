@@ -1119,8 +1119,222 @@ def template_defaults():
     ("TPL. template defaults (null-id task + []) -> no error (R4 R-A+R-B)", template_defaults, 0),
 
 ----------------------------------------------------------------
-本地北京时间: 2026-07-17 14:41:23 CST
+================================================================
+F. rework-2 段(review-2 round-2 / Codex:2 条代码 P1 + P3)—— 32 用例对抗套件
+================================================================
+
+修 review-2 round-2 的 finding-1(task own-review 隔离信 reviewer 标签先于 provider)
+与 finding-2(git tree/symlink/submodule 冒充 evidence),加 P3(AGENTS.md EOF 空行)。
+#3(watchdog)/#4(dispatch)是 bookkeeper 的活,不归本 fix。
+套件由 E.1 的 25 用例扩展到 32:保留全部 25 例(零回归),新增 7 例覆盖 finding-1/2。
+临时脚本 /tmp/rc4_rw2_test.py(32 用例;按记录 evidence_file 回填 evidence_sha256;
+prep 回调构造 in-repo symlink / file:// submodule),跑完即删,不在交付树。
+
+命令(模板仓 ai_project_harness,分支 stage/2026-07-harness-authorized-exception-v1):
+  python3 -m py_compile scripts/validate-stage.py
+      -> COMPILE_OK
+  python3 /tmp/rc4_rw2_test.py
+      -> ALL CASES AS EXPECTED  (32/32)
+  python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase checkpoint
+      -> STAGE VALIDATION PASSED
+         diff_fingerprint=c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2
+         (== status.json round-2 reviewed_fingerprint,零回归)
+  git diff --check 00e25b4 -- AGENTS.md
+      -> exit 0  (P3 EOF 空行已清)
+
+----- 7 个新用例输出(findng-1: G1/G3/G4/G5;finding-2: E1/E2/E3)-----
+
+===== G1. owner=claude_glm + provider=zhipu_glm + unregistered reviewer -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- task A review_1 provider identity must differ from task owner/implementer provider identity
+
+===== G3. reviewer alias conflicts with declared provider -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- task A review_1.reviewer alias 'kimi' resolves to provider 'moonshot_kimi', conflicting with declared .provider 'openai'
+
+===== G4. own-review with no owner/implementer -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- task A review_1 task owner/implementer provider must be a recognized, non-empty provider to establish cross-provider isolation for a task own-review
+
+===== G5. reviewer label only (no provider) -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- task A review_1.provider must be a non-empty string for a task own-review
+
+===== E1. evidence_file=directory (tree) + digest -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].evidence_file must be a regular file blob (mode 100644/100755, type blob), got mode 040000 type tree: reports/agent-runs/test-stage
+- authorized_exceptions[1].evidence_file must be a regular file blob (mode 100644/100755, type blob), got mode 040000 type tree: reports/agent-runs/test-stage
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+===== E2. committed symlink evidence -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].evidence_file must be a regular file blob (mode 100644/100755, type blob), got mode 120000 type blob: reports/agent-runs/test-stage/evidence_link
+- authorized_exceptions[1].evidence_file must be a regular file blob (mode 100644/100755, type blob), got mode 120000 type blob: reports/agent-runs/test-stage/evidence_link
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+===== E3. committed submodule evidence -> FAIL  [expect exit=1, got 1] OK =====
+STAGE VALIDATION FAILED
+- authorized_exceptions[0].evidence_file must be a regular file blob (mode 100644/100755, type blob), got mode 160000 type commit: reports/agent-runs/test-stage/evidence_sub
+- authorized_exceptions[1].evidence_file must be a regular file blob (mode 100644/100755, type blob), got mode 160000 type commit: reports/agent-runs/test-stage/evidence_sub
+- review_1.diff_fingerprint must match status.diff_fingerprint
+- review_2.diff_fingerprint must match status.diff_fingerprint
+
+----- 32 用例结果摘要(全 OK;✦ = rework-2 新增;其余 25 例同 E.1,零回归)-----
+  1. compliant class-1            -> PASS 0/0 OK
+  2. missing evidence_file        -> FAIL 1/1 OK
+  3. applies_to_fingerprint pin   -> FAIL 1/1 OK
+  4. authorizer != user           -> FAIL 1/1 OK
+  5. tampered fp (neg-list#1)     -> FAIL 1/1 OK
+  6a. D3 chain ok                 -> PASS 0/0 OK
+  6b. D3 chain broken             -> FAIL 1/1 OK
+  7a. single task (degenerate)    -> PASS 0/0 OK
+  7b. tasks absent                -> PASS 0/0 OK
+  REG baseline single-task        -> PASS 0/0 OK
+  F1. task-only exception         -> PASS 0/0 OK   (合法跨 provider own-review,不误伤)
+  F2. fabricated task review      -> FAIL 1/1 OK
+  F3-abs absolute evidence        -> FAIL 1/1 OK
+  F3-esc ../ escape               -> FAIL 1/1 OK
+  F3-dig evidence_sha256 mismatch -> FAIL 1/1 OK
+  F3-empty empty blob             -> FAIL 1/1 OK
+  F4-raw raw-id scope             -> FAIL 1/1 OK
+  F4-dup duplicate task id        -> FAIL 1/1 OK
+  F4-miss multi-task missing id   -> FAIL 1/1 OK
+  F4-sgl single null-id task      -> PASS 0/0 OK
+  TPL template defaults           -> -    0/0 OK
+  P2-r missing reason             -> FAIL 1/1 OK
+  P2-a non-ISO at                 -> FAIL 1/1 OK
+  CL2 class-2 REWORK+except       -> FAIL 1/1 OK   (negative-list 守住)
+  ID review_2 same provider       -> FAIL 1/1 OK   (身份分离守住)
+✦G1  owner+provider 同源(任意reviewer) -> FAIL 1/1 OK  (finding-1: provider 权威,假绿闭合)
+✦G3  reviewer 别名冲突 provider        -> FAIL 1/1 OK  (finding-1: 已注册别名 fail-closed)
+✦G4  own-review 缺 owner/implementer  -> FAIL 1/1 OK  (finding-1: 不再静默跳过)
+✦G5  仅 reviewer 标签无 provider       -> FAIL 1/1 OK  (finding-1: 标签不建立 provider 身份)
+✦E1  evidence=目录(tree)              -> FAIL 1/1 OK  (finding-2: mode 040000 拒绝)
+✦E2  evidence=symlink                 -> FAIL 1/1 OK  (finding-2: mode 120000 拒绝)
+✦E3  evidence=submodule/gitlink       -> FAIL 1/1 OK  (finding-2: mode 160000 拒绝)
+
+----- finding -> 用例映射 -----
+  finding-1 (P1) _task_own_review_covers 改 provider-authoritative(:1127 起)
+    G1: owner=claude_glm + review.provider=zhipu_glm,reviewer=任意未注册串 -> FAIL
+        (round-1 假绿闭合:不再因 reviewer 标签盖过真实 provider)
+    G3: reviewer='kimi'(->moonshot_kimi) 冲突 declared provider='codex'(->openai) -> FAIL
+    G4: own-review 的 task 无 owner/implementer -> FAIL(不再静默跳过隔离分支)
+    G5: review.provider='' 仅靠 reviewer 标签 -> FAIL(标签不建立 provider 身份)
+    F1: owner=claude_glm + review.provider=codex 合法跨 provider -> PASS(不误伤)
+  finding-2 (P1) evidence 必须常规 blob
+    (_evidence_object_mode_and_type :882 + _validate_exception_evidence mode 门 :938)
+    E1: evidence_file=目录,git ls-tree mode=040000 type=tree + digest 匹配 -> FAIL
+    E2: committed symlink,mode=120000 type=blob -> FAIL
+    E3: committed submodule/gitlink,mode=160000 type=commit -> FAIL
+    (常规非空 blob + digest 匹配 PASS 由用例 1/F1 覆盖;
+     digest 不匹配/绝对路径/逃逸/untracked/空 blob 由 F3-*/F3-empty 覆盖,均仍 FAIL)
+
+----- rework-2 脚手架源码:新增 _two_task_doc helper + 7 个 case(其余同 E.1;临时,不在交付树)-----
+
+def _two_task_doc(tmp, sd, base, Ah, head, task_a_review):
+    sfp = fp(tmp, sd, base, head); fpA = fp(tmp, sd, base, Ah)
+    doc = base_doc(base, head, sfp)
+    doc["tasks"] = [
+        {"id": "A", "base_sha": base, "head_sha": Ah, "diff_fingerprint": fpA, **task_a_review},
+        {"id": "B", "base_sha": Ah, "head_sha": head, "diff_fingerprint": fp(tmp, sd, Ah, head)},
+    ]
+    doc["authorized_exceptions"] = [exc("task:B", sfp)]
+    return doc
+
+def g1_self_review_masked():
+    """finding-1: owner=claude_glm(zhipu_glm) + review.provider=zhipu_glm must
+    FAIL even when reviewer is an arbitrary unregistered label (round-1 false
+    green closed)."""
+    tmp, shas, sd = setup(2); base, Ah, head = shas[0], shas[1], shas[2]
+    doc = _two_task_doc(tmp, sd, base, Ah, head, {
+        "owner": "claude_glm",
+        "review_1": {"reviewer": "innocent-unregistered-label", "provider": "zhipu_glm", "model": "glm52",
+                     "verdict": "ACCEPT", "json_schema_valid": True,
+                     "diff_fingerprint": fp(tmp, sd, base, Ah)},
+    })
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def g3_alias_conflict():
+    """finding-1: reviewer is a recognized provider alias (kimi -> moonshot_kimi)
+    that conflicts with declared provider (codex -> openai) -> fail-closed."""
+    tmp, shas, sd = setup(2); base, Ah, head = shas[0], shas[1], shas[2]
+    doc = _two_task_doc(tmp, sd, base, Ah, head, {
+        "owner": "claude_glm",
+        "review_1": {"reviewer": "kimi", "provider": "codex", "model": "gpt",
+                     "verdict": "ACCEPT", "json_schema_valid": True,
+                     "diff_fingerprint": fp(tmp, sd, base, Ah)},
+    })
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def g4_missing_owner():
+    """finding-1: an own-review with no resolvable owner/implementer provider
+    cannot establish isolation -> FAIL (no longer silently skipped)."""
+    tmp, shas, sd = setup(2); base, Ah, head = shas[0], shas[1], shas[2]
+    doc = _two_task_doc(tmp, sd, base, Ah, head, {
+        # no owner / no implementer
+        "review_1": {"reviewer": "codex", "provider": "codex", "model": "gpt",
+                     "verdict": "ACCEPT", "json_schema_valid": True,
+                     "diff_fingerprint": fp(tmp, sd, base, Ah)},
+    })
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def g5_reviewer_only_no_provider():
+    """finding-1: a reviewer label alone (empty provider) cannot establish
+    provider identity -> FAIL."""
+    tmp, shas, sd = setup(2); base, Ah, head = shas[0], shas[1], shas[2]
+    doc = _two_task_doc(tmp, sd, base, Ah, head, {
+        "owner": "claude_glm",
+        "review_1": {"reviewer": "codex", "provider": "", "model": "gpt",
+                     "verdict": "ACCEPT", "json_schema_valid": True,
+                     "diff_fingerprint": fp(tmp, sd, base, Ah)},
+    })
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def e1_tree_evidence():
+    """finding-2: evidence_file pointing to a directory (git tree) with a
+    matching digest must FAIL."""
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp, evidence=STAGE_REL), exc("review_2", sfp, evidence=STAGE_REL)]
+    write_and_commit(tmp, doc); return run_validator(tmp)
+
+def e2_symlink_evidence():
+    """finding-2: a committed symlink (mode 120000) as evidence must FAIL."""
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    link_rel = f"{STAGE_REL}/evidence_link"
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp, evidence=link_rel), exc("review_2", sfp, evidence=link_rel)]
+    def prep(t):
+        # In-repo relative target so the path-escape gate is NOT what rejects it;
+        # the symlink must reach the finding-2 mode gate (120000) to FAIL.
+        os.symlink("waiver.md", str(t / link_rel))
+    write_and_commit(tmp, doc, prep=prep); return run_validator(tmp)
+
+def e3_submodule_evidence():
+    """finding-2: a committed submodule/gitlink (mode 160000) as evidence must FAIL."""
+    tmp, shas, sd = setup(1); base, head = shas[0], shas[1]; sfp = fp(tmp, sd, base, head)
+    sub_rel = f"{STAGE_REL}/evidence_sub"
+    doc = base_doc(base, head, sfp, r1="STALE:1", r2="STALE:2")
+    doc["authorized_exceptions"] = [exc("review_1", sfp, evidence=sub_rel), exc("review_2", sfp, evidence=sub_rel)]
+    def prep(t):
+        sub_repo = Path(tempfile.mkdtemp(prefix="rc4sub_"))
+        subprocess.run(["git", "init", "-q"], cwd=sub_repo, check=True)
+        for k, v in {"user.email": "s@s", "user.name": "s", "commit.gpgsign": "false"}.items():
+            git(["config", k, v], sub_repo)
+        (sub_repo / "x.txt").write_text("sub\n")
+        git(["add", "."], sub_repo); git(["commit", "-q", "-m", "s"], sub_repo)
+        # protocol.file.allow is set on the tmp repo config, but `git submodule`
+        # spawns a clone child that does not inherit it; pass it inline (-c) so
+        # the file:// sub-repo can be cloned and registered as a gitlink (160000).
+        git(["-c", "protocol.file.allow=always", "submodule", "add", "--force", str(sub_repo), sub_rel], t)
+    write_and_commit(tmp, doc, prep=prep); return run_validator(tmp)
+
+----------------------------------------------------------------
+模型身份: claude_glm（zhipu_glm / glm-5.2；Claude Code CLI 桥接；session id 未暴露 — zhipu_glm 运行环境未提供原生 session id API）
+本地北京时间: 2026-07-17 17:30:04 CST
 下一步模型: bookkeeper(Claude Opus 4.8)
-下一步任务: 提交 rework-1 改动(含 R4 两处模板默认值修正:模板 authorized_exceptions
-回 []、_task_id_errors <2 短路)、重算 diff_fingerprint、跑 validator pre-accept、
-重进 review-1(Kimi)→ review-2(Codex)
+下一步任务: 提交 rework-2 改动(validate-stage.py finding-1 provider-authoritative own-review
+隔离 + finding-2 evidence-regular-blob 模式门;AGENTS.md P3 EOF 空行)、重算 diff_fingerprint、
+跑 validator pre-accept、重进 round-3 review-1(Kimi)→ review-2(Codex)

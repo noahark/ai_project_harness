@@ -169,6 +169,54 @@ rework-1 首版（§1–§5）经 bookkeeper R4 对账，发现两处**模板默
 
 ---
 
+## 7. rework-2 修复（review-2 round-2 / Codex：2 条代码 P1 + P3）
+
+rework-1（§1–§6）经 round-2 review：Kimi ACCEPT、Codex REWORK（2 条代码 P1 + 1 P3；#3 watchdog / #4 dispatch 由 bookkeeper 处理，不归本 fix）。本轮 `rework_count=2/3`（最后一次返修额度），只堵两个相邻边界洞，不动 §1–§6 已修好的部分。
+
+### finding-1（P1）—— task own-review 隔离信 reviewer 标签先于 provider
+
+- **函数/行**：`_task_own_review_covers()`，:1127 起（`# finding-1 (rework-2)` 标记）。
+- **根因**：原用全局 `review_provider_identity(review)` 作 reviewer 身份，而该 helper **先取 `reviewer` 再取 `provider`**；把 `reviewer` 写成任意未注册串就能盖过真实 `provider`，让 `owner=claude_glm` / `provider=zhipu_glm` 的同 provider 自审通过（假绿）。且 task 无 owner/implementer 时隔离分支被整体跳过。
+- **修法**（task 专用严格解析，**不外溢到主 review 身份门**）：
+  - reviewer 身份改用 `provider_identity(review.get("provider"))`（`provider` 字段为权威），不再用 reviewer 标签。
+  - 要求 task 有可解析的 owner/implementer provider；缺失 → FAIL（不再静默跳过）。
+  - 要求 `review.provider` 存在且可解析；缺失 → FAIL（reviewer 标签单独不建立 provider 身份）。
+  - `review.reviewer` 本身是已注册 provider 别名且与 `review.provider` 冲突 → fail-closed。
+  - owner provider == reviewer provider → FAIL（跨 provider 隔离）。
+- **为何不动全局主门**：全局 `review_provider_identity()`「reviewer 优先」是身份分离主关卡（:717-718）的既定语义，属禁改主干；本 fix 在 task own-review 上下文做专用解析，主 review 身份门行为不变（用例 ID 仍红、negative-list 守住）。若必须动全局 helper 会停手并 surface，未发生。
+
+### finding-2（P1）—— git tree/symlink/submodule 冒充 evidence
+
+- **函数/行**：新增 `_evidence_object_mode_and_type()`（:882）+ `_validate_exception_evidence()` 调用点（:932）与模式门（:938）。
+- **根因**：`_evidence_committed_blob` 用 `git show` 读内容，**不校验对象类型/模式**；evidence_file 指向目录时 `git show HEAD:dir` 返回非空 tree 列表，digest 匹配即过。
+- **修法**：读 blob 前用 `git ls-tree <HEAD> -- <path>` 取 `(mode, type)`，要求 `mode ∈ {100644, 100755}` 且 `type == "blob"`；拒绝 tree（040000）、symlink（120000）、submodule/gitlink（160000）及其它非常规模式 → FAIL（negative-list #4）。symlink 与常规文件共享 git 对象类型 `"blob"`，故用 **mode**（而非 `cat-file` type）区分。
+- **保留** Fable5 的 `evidence_sha256` + 验证时 HEAD 设计（验证时 `git rev-parse HEAD`，**不绑定** `status.head_sha`）；常规 blob 通过后才按现有逻辑算 sha256 比对。
+
+### P3 —— AGENTS.md EOF 空行
+
+- 删 `AGENTS.md` 结尾多余空行（`git diff --check` 报 "new blank line at EOF"）。现以单个 `\n` 结尾；`git diff --check 00e25b4 -- AGENTS.md` exit 0。
+
+## 8. 零回归 + bootstrapping（rework-2）
+
+- **py_compile**：`python3 -m py_compile scripts/validate-stage.py` → `COMPILE_OK`。
+- **32 用例对抗套件**：E.1 的 25 用例全部保留零回归 + 新增 7 用例（G1/G3/G4/G5 覆盖 finding-1，E1/E2/E3 覆盖 finding-2），32/32 `AS EXPECTED`。证据与脚手架源码见 `60-test-output.txt` F 段。
+- **checkpoint（bootstrapping）**：改后的验证器对自己 stage 仍 `PASSED`，`diff_fingerprint=c82fc2b…:f3d3fb33…`（== status.json round-2 reviewed_fingerprint，零回归）。
+- **negative-list 守住**：CL2（class-2 `verdict==REWORK` + 例外仍 FAIL）、ID（review_2 同 provider 仍 FAIL）；F1 合法跨 provider own-review 仍 PASS（不误伤）。
+- **退化不变**：单任务 / tasks 缺省 → PASS；模板默认值（R4 R-A+R-B）仍零 error。
+
+## 9. 交付物清单（rework-2 增量）
+
+| 文件 | 状态 | 内容 |
+|---|---|---|
+| `scripts/validate-stage.py` | M | finding-1（:1127 provider-authoritative）+ finding-2（:882 helper / :938 mode 门） |
+| `AGENTS.md` | M | P3 EOF 空行 |
+| `40-fix-report.md` | M | 追加 §7–§9（rework-2） |
+| `60-test-output.txt` | M | 追加 F 段（rework-2，原 A–E.1 保留） |
+
+**禁改边界（rework-2 未触碰）**：`compute_diff_fingerprint()`；身份分离 `:717-718` / 全局 `review_provider_identity` 主门语义；共享 `evidence_path_exists`；class-2；RC1/RC2/RC3；`funding_hedging`；AGENTS.md 两仓 carve-out；Fable5 的 `evidence_sha256` 方案（未改回 blob@head_sha）；未 commit/merge/push。
+
+---
+
 模型身份: claude_glm（zhipu_glm / glm-5.2；Claude Code CLI 桥接；session id 未暴露 — zhipu_glm 运行环境未提供原生 session id API）
-本地北京时间: 2026-07-17 14:41:23 CST
-下一步模型: bookkeeper（Claude Opus 4.8）—— 提交 rework-1 改动（4 文件 + 本报告 + 60 追加；含 R4 两处模板默认值修正）、重算 diff_fingerprint、跑 validator pre-accept、重进 review-1（Kimi）→ review-2（Codex）
+本地北京时间: 2026-07-17 17:30:04 CST
+下一步模型: bookkeeper（Claude Opus 4.8）—— 提交 rework-2 改动（validate-stage.py finding-1/2 + AGENTS.md P3 + 本报告 §7–§9 + 60 F 段）、重算 diff_fingerprint、跑 validator pre-accept、重进 round-3 review-1（Kimi）→ review-2（Codex）

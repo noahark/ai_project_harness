@@ -480,4 +480,3 @@ Key reminders:
   not record its expanded environment.
 - YAML files describe intent and routing. Command details belong in adapters or
   runner code, not arbitrary shell snippets embedded in tasks.
-
