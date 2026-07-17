@@ -1,6 +1,6 @@
 {
   "stage_id": "2026-07-harness-authorized-exception-v1",
-  "status": "implementing",
+  "status": "review_1",
   "workflow": "stage-delivery",
   "stage_branch": {
     "name": "stage/2026-07-harness-authorized-exception-v1",
@@ -104,12 +104,23 @@
     "user_approved": false
   },
   "base_sha": "00e25b4bb6e492ffbd974d1d7793ef10246fa6ad",
-  "head_sha": null,
-  "diff_fingerprint": null,
-  "changed_files": [],
+  "head_sha": "941416345c92bf3c42556e0d9178f28e1384b4e6",
+  "diff_fingerprint": "941416345c92bf3c42556e0d9178f28e1384b4e6:5b28d88ce253d6d41f9c5841cfe51265a66e132c8fe7556d1177da4404b186f0",
+  "changed_files": [
+    "scripts/validate-stage.py",
+    "reports/agent-runs/_template/status.json",
+    "AGENTS.md",
+    "docs/harness-design.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/20-implementation.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/60-test-output.txt"
+  ],
   "tests": {
-    "status": "not_run",
-    "commands": []
+    "status": "pass",
+    "commands": [
+      "python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase pre-review",
+      "python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase checkpoint",
+      "python3 /tmp/rc4_test.py  # temporary construction harness; full source + output archived in 60-test-output.txt"
+    ]
   },
   "review_1": {
     "reviewer": null,
@@ -155,9 +166,9 @@
     "reason": null
   },
   "terminal_reason": null,
-  "next_action": "operator executes 15-dispatch-impl-claude-glm.md in claude_glm (TEMPLATE REPO); then bookkeeper commits, computes fingerprint, runs pre-review, routes review-1 (kimi)",
-  "updated_at": "2026-07-16T17:15:00Z",
-  "current_phase": "implementation-dispatch",
+  "next_action": "bookkeeper committed impl (head 9414163), computed fingerprint, ran pre-review PASS; operator dispatches review-1 (kimi) via 30-review-1 dispatch",
+  "updated_at": "2026-07-17T03:20:00Z",
+  "current_phase": "review-1-dispatch",
   "model_routing": {
     "implementation_owner": "claude_glm",
     "review_1": "kimi",
@@ -200,7 +211,10 @@
   "current_inputs": [
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/00-task.md",
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/10-design.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/11-adr.md",
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/12-development-breakdown.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/20-implementation.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/60-test-output.txt",
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/70-handoff.md"
   ],
   "design_decisions_resolution": {

@@ -5,12 +5,14 @@ it together with `status.json` and only the needed workflow section.
 
 ## Recovery Header
 
-- Active phase: `implementing`（设计已认可,实现已派工,等操作者执行 dispatch）
+- Active phase: `review_1`（实现已交付+提交,pre-review PASS,等派 review-1 Kimi）
 - Repo: **模板仓** `ai_project_harness`（不是 funding_hedging）。validate-stage.py +
   schemas 是 harness_owned，在此开发；接受后手动 cp 到 funding_hedging。
-- Next action: **操作者在 Claude-GLM 终端(模板仓)执行
-  `15-dispatch-impl-claude-glm.md`**；实现者产出 `20-implementation.md`+`60-test-output.txt`
-  后,bookkeeper 提交、算指纹、跑 pre-review、派 review-1(Kimi)→review-2(Codex)。
+- head_sha `941416345c92bf3c42556e0d9178f28e1384b4e6`；diff_fingerprint
+  `9414163…:5b28d88c…`（bookkeeper 已在 commit-1 交付、commit-2 记账）。
+- Next action: **操作者在 Kimi 终端(模板仓)执行 review-1**（严核 negative-list 五项不可
+  豁免、class-2 未放宽、钉指纹自动失效、退化零改变、边界零越界）；产出 `30-review-1.md` +
+  写回 `status.review_1`。之后 review-2(Codex,证据完整性主干严审)。
 - 设计已定(Fable5 D1/D2/D3,见 `10-design.md`)：D1 白名单源码枚举、v1 只收 class-1、
   negative list 五项不可豁免;D2 钉指纹自动失效 + authorizer=="user" 硬化 + 非静默;
   D3 链式+前缀、单任务退化。
@@ -48,6 +50,6 @@ it together with `status.json` and only the needed workflow section.
 当前 Session ID: unavailable (Claude Code session id 未暴露)
 Session ID 来源: unavailable
 原始输出路径: reports/agent-runs/2026-07-harness-authorized-exception-v1/70-handoff.md
-本地北京时间: 2026-07-17 01:02:53 CST
-下一步模型: human（拍板 D1/D2/D3）
-下一步任务: 定三个设计决策；据此出 10-design
+本地北京时间: 2026-07-17 11:20:00 CST
+下一步模型: kimi（review-1）
+下一步任务: 严核 RC4 实现（negative-list 不可豁免 / class-2 未放宽 / 钉指纹失效 / 退化零改变）,写 30-review-1
