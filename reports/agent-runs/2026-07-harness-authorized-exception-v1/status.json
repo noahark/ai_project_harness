@@ -1,6 +1,6 @@
 {
   "stage_id": "2026-07-harness-authorized-exception-v1",
-  "status": "review_1",
+  "status": "review_2",
   "workflow": "stage-delivery",
   "stage_branch": {
     "name": "stage/2026-07-harness-authorized-exception-v1",
@@ -142,13 +142,13 @@
   "review_1": {
     "reviewer": "kimi",
     "provider": "moonshot",
-    "model": null,
-    "open_p0_p1": null,
-    "verdict": null,
-    "json_schema_valid": null,
-    "diff_fingerprint": null,
+    "model": "kimi-for-coding",
+    "open_p0_p1": [],
+    "verdict": "ACCEPT",
+    "json_schema_valid": true,
+    "diff_fingerprint": "c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2",
     "reviewer_prior_involvement": "none",
-    "fix_start_prompt_present": null,
+    "fix_start_prompt_present": false,
     "fix_start_prompt_source": null,
     "invalid_json_attempts": 0
   },
@@ -183,9 +183,9 @@
     "reason": null
   },
   "terminal_reason": null,
-  "next_action": "rework-1 fix delivered (claude_glm) + bookkeeper R4 (2 template-default regressions caught+fixed). New head c82fc2b, fingerprint recomputed, pre-review PASS. Operator dispatches round-2 review-1 (kimi) via 25-dispatch-review-1-kimi.md; then review-2 (codex).",
-  "updated_at": "2026-07-17T06:10:00Z",
-  "current_phase": "rework-1-review-1-dispatch",
+  "next_action": "round-2 review-1 (kimi) ACCEPT (P0/P1/P2=0, P3=1 non-blocking; dual-path fingerprint recompute matches). status review_1->review_2. Operator dispatches round-2 review-2 (codex). MUST tell codex finding-3 uses evidence_sha256-in-record (Fable5 56-ruling) NOT blob@head_sha (deadlocks post-head auth) — the deviation is direction-authorized, do not re-demand blob@head_sha.",
+  "updated_at": "2026-07-17T06:45:00Z",
+  "current_phase": "rework-1-review-2-dispatch",
   "model_routing": {
     "implementation_owner": "claude_glm",
     "review_1": "kimi",

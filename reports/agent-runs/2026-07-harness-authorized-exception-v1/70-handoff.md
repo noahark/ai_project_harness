@@ -5,7 +5,7 @@ it together with `status.json` and only the needed workflow section.
 
 ## Recovery Header
 
-- Active phase: `review_1`（rework-1 fix 已交付+提交,pre-review PASS,等派 round-2 review-1 Kimi）
+- Active phase: `review_2`（round-2 review-1 Kimi ACCEPT,等派 round-2 review-2 Codex）
 - Repo: **模板仓** `ai_project_harness`（不是 funding_hedging）。validate-stage.py +
   schemas 是 harness_owned，在此开发；接受后手动 cp 到 funding_hedging。
 - **新 head `c82fc2b05299e1edc1ad972b12e12d8597cfb394`；diff_fingerprint `c82fc2b…:f3d3fb33…`**
@@ -22,12 +22,12 @@ it together with `status.json` and only the needed workflow section.
   (**不用 blob@head_sha,会与 post-head 授权死锁**)④task 按 assertion_id 过滤。Q2 文档必改
   (防静默+强制人核两层,人核是流程义务)。不做 B(receipt 依赖 DRAFT 基建)。10-design §2/§2.1/§7
   已更。拆分:user_authorizations 结构化 + runner receipt → 后续 stage。
-- rework-1 fix 已交付(claude_glm)+ bookkeeper R4(逮到并修 2 处模板默认值回归:模板
-  authorized_exceptions 全-null 占位破 pre-accept、_task_id_errors 对单占位误红)。25 用例全过。
-- Next action: **操作者派 Kimi 执行 round-2 review-1**(`25-dispatch-review-1-kimi.md`,被审的是
-  新 head `c82fc2b`);复算指纹须 == `c82fc2b…:f3d3fb33…`;重点复核 4 P1 是否真堵死 + R4 两处
-  不引新洞。产出 30-review-1.md(覆盖)+ 写回 status.review_1。之后 review-2(Codex)。fix 作者
-  禁为 Codex。round-1 记录见 review_rounds[0] + 30/50 md 的 git 历史。
+- round-2 review-1(Kimi/moonshot)=ACCEPT(P0/P1/P2=0,P3=1 非阻塞;双路复算指纹一致)。
+- Next action: **操作者派 Codex 执行 round-2 review-2**(终审,被审新 head `c82fc2b`)。
+  **⚠️ 必带前置说明:finding-3 采用 `evidence_sha256`-in-record + 读提交 blob(Fable5 56-裁决),
+  不采用 Codex 原文的 blob@`status.head_sha`——后者与 post-head 授权死锁。该偏离是方向权威批准的,
+  Codex 应评估 evidence_sha256 是否达成同等防篡改,不得再要求 blob@head_sha。** 产出 50-review-2.md
+  (覆盖 round-1)+ 写回 status.review_2。ACCEPT → pre-accept 门 → 用户接受。fix 作者禁为 Codex。
 - 设计已定(Fable5 D1/D2/D3,见 `10-design.md`)：D1 白名单源码枚举、v1 只收 class-1、
   negative list 五项不可豁免;D2 钉指纹自动失效 + authorizer=="user" 硬化 + 非静默;
   D3 链式+前缀、单任务退化。
@@ -65,6 +65,6 @@ it together with `status.json` and only the needed workflow section.
 当前 Session ID: unavailable (Claude Code session id 未暴露)
 Session ID 来源: unavailable
 原始输出路径: reports/agent-runs/2026-07-harness-authorized-exception-v1/70-handoff.md
-本地北京时间: 2026-07-17 14:10:00 CST
-下一步模型: kimi（round-2 review-1,经操作者派发）
-下一步任务: 复审新 head c82fc2b(4 P1 是否堵死 + R4 两处),复算指纹须 == c82fc2b…:f3d3fb33…,写 30-review-1
+本地北京时间: 2026-07-17 14:45:00 CST
+下一步模型: codex（round-2 review-2 终审,经操作者派发）
+下一步任务: 终审新 head c82fc2b(自己 4 P1 是否真堵死 + finding-3 evidence_sha256 是否等效 + R4),写 50-review-2
