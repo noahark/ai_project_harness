@@ -1,6 +1,6 @@
 {
   "stage_id": "2026-07-harness-authorized-exception-v1",
-  "status": "review_1",
+  "status": "review_2",
   "workflow": "stage-delivery",
   "stage_branch": {
     "name": "stage/2026-07-harness-authorized-exception-v1",
@@ -123,15 +123,15 @@
     ]
   },
   "review_1": {
-    "reviewer": null,
-    "provider": null,
-    "model": null,
-    "open_p0_p1": null,
-    "verdict": null,
-    "json_schema_valid": null,
-    "diff_fingerprint": null,
+    "reviewer": "kimi",
+    "provider": "moonshot",
+    "model": "kimi-for-coding",
+    "open_p0_p1": [],
+    "verdict": "ACCEPT",
+    "json_schema_valid": true,
+    "diff_fingerprint": "941416345c92bf3c42556e0d9178f28e1384b4e6:5b28d88ce253d6d41f9c5841cfe51265a66e132c8fe7556d1177da4404b186f0",
     "reviewer_prior_involvement": "none",
-    "fix_start_prompt_present": null,
+    "fix_start_prompt_present": false,
     "fix_start_prompt_source": null,
     "invalid_json_attempts": 0
   },
@@ -166,9 +166,9 @@
     "reason": null
   },
   "terminal_reason": null,
-  "next_action": "bookkeeper committed impl (head 9414163), computed fingerprint, ran pre-review PASS; operator dispatches review-1 (kimi) via 30-review-1 dispatch",
-  "updated_at": "2026-07-17T03:20:00Z",
-  "current_phase": "review-1-dispatch",
+  "next_action": "review-1 (kimi) ACCEPT recorded (P0=0,P1=0,P2=3 non-blocking); operator dispatches review-2 (codex) via 26-dispatch-review-2-codex.md; P2-2 evidence-authenticity residual risk flagged for review-2 focus",
+  "updated_at": "2026-07-17T04:10:00Z",
+  "current_phase": "review-2-dispatch",
   "model_routing": {
     "implementation_owner": "claude_glm",
     "review_1": "kimi",
