@@ -5,18 +5,22 @@ it together with `status.json` and only the needed workflow section.
 
 ## Recovery Header
 
-- Active phase: `intake`（Stage A intake 已落档，等用户拍板 3 个设计决策）
+- Active phase: `implementing`（设计已认可,实现已派工,等操作者执行 dispatch）
 - Repo: **模板仓** `ai_project_harness`（不是 funding_hedging）。validate-stage.py +
   schemas 是 harness_owned，在此开发；接受后手动 cp 到 funding_hedging。
-- Next action: **用户审阅 `00-task.md` 的 D1/D2/D3 三个设计决策并拍板**；据此 bookkeeper
-  出 `10-design.md`，再派 Claude-GLM 实现 → Kimi review-1 → Codex review-2。
-- 方向：Fable5 裁决已覆盖（RC4 (a)分任务指纹 +(b)授权例外槽，复用 :735-737 模式，R1）。
-- 范围：只修 validator 的例外/指纹能力（RC4）；RC1/RC2/RC3 属 Stage B+。
-- Bootstrapping：本 stage 改 validator，自身仍由改前 validator 把关；验收含"用改后脚本
-  对本 stage 自己跑仍 PASS + 零回归"。
-- 顺带目标（接受+cp 后做，不在本 stage）：转绿 bookticker / docs-truth-sync 两红门。
+- Next action: **操作者在 Claude-GLM 终端(模板仓)执行
+  `15-dispatch-impl-claude-glm.md`**；实现者产出 `20-implementation.md`+`60-test-output.txt`
+  后,bookkeeper 提交、算指纹、跑 pre-review、派 review-1(Kimi)→review-2(Codex)。
+- 设计已定(Fable5 D1/D2/D3,见 `10-design.md`)：D1 白名单源码枚举、v1 只收 class-1、
+  negative list 五项不可豁免;D2 钉指纹自动失效 + authorizer=="user" 硬化 + 非静默;
+  D3 链式+前缀、单任务退化。
+- ⚠️ 最危险点:降级逻辑只能对 `review.diff_fingerprint` 单条、且经例外全合规后降级;
+  绝不降级 verdict/身份/指纹重算(negative list)。
+- Bootstrapping：改后脚本对本 stage 自己跑仍需正常;现有行为零回归。
+- 顺带目标（接受+cp 后做,不在本 stage）：bookticker 真转绿(class-1);docs-truth-sync
+  维持 user-acceptance-override(其 review_2 是 class-2,不在 v1)。
 - Read-set: = `status.current_inputs`
-- Open blockers: None（等用户定 D1/D2/D3）
+- Open blockers: None
 - Do-not-read: `reports/agent-runs/**/history/**`, other stages
 
 ## Current State
