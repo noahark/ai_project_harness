@@ -5,7 +5,13 @@ it together with `status.json` and only the needed workflow section.
 
 ## Recovery Header
 
-- Active phase: `review_2`（round-2 review-1 Kimi ACCEPT,等派 round-2 review-2 Codex）
+- Active phase: `implementing`（rework-2;round-2 review-2 Codex REWORK 4 P1+P3,等定 watchdog 处置后派工）
+- **rework_count=2/3**。round-2 review-2(Codex/gpt-5)=REWORK。4 P1:①task own-review 隔离信
+  reviewer 标签先于 provider(假绿自审)②git tree 冒充 evidence(非 blob 绕过)③(bookkeeper 错)
+  无关的 adapter-watchdog-runner.md(469行)混进 base..head 且不在 changed_files ④(bookkeeper 错)
+  26-dispatch 仍绑 round-1 旧 head。P3:AGENTS.md EOF 空行。均已 bookkeeper 核实成立。
+  Codex 确认 round-1 修复本身成立、evidence_sha256 方案可接受(不再要 blob@head_sha)。
+- 分工:①②→claude_glm 代码;③④→bookkeeper。③(watchdog)待用户定处置(迁 main vs 丢+暂存)。
 - Repo: **模板仓** `ai_project_harness`（不是 funding_hedging）。validate-stage.py +
   schemas 是 harness_owned，在此开发；接受后手动 cp 到 funding_hedging。
 - **新 head `c82fc2b05299e1edc1ad972b12e12d8597cfb394`；diff_fingerprint `c82fc2b…:f3d3fb33…`**

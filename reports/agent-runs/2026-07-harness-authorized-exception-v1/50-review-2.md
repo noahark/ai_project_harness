@@ -1,35 +1,32 @@
-> Bookkeeper 说明:本文件由 codex read-only 会话逐字抽取保存(codex supports_write:false,无法自写)。来源 session 019f6e4c-3f2d-7713-ad86-26ede6c00456,末条 assistant 消息,内容未改。
+> Bookkeeper 说明:round-2 review-2,由 codex read-only 会话逐字抽取覆盖保存(round-1 的 50-review-2.md 见 git @3ede818)。来源 session 019f6e4c-3f2d-7713-ad86-26ede6c00456 末条 assistant 消息,内容未改。
 
-# Review-2 结论：REWORK
+# Round-2 Review-2：REWORK
 
-复算指纹一致：
+权威审查范围：
 
-`941416345c92bf3c42556e0d9178f28e1384b4e6:5b28d88ce253d6d41f9c5841cfe51265a66e132c8fe7556d1177da4404b186f0`
+`00e25b4bb6e492ffbd974d1d7793ef10246fa6ad..c82fc2b05299e1edc1ad972b12e12d8597cfb394`
 
-P0=0，P1=4，P2=2。需要返修的核心问题：
+双路复算指纹一致：
 
-1. task 级例外会被静默使用。`validate_task_coverage()` 消费 task 例外却只返回 errors；最终输出只统计 review 级例外。可以依赖 task 例外 PASS，但完全不打印 PASS-with-exception。
-2. 任意非空字符串都能冒充 task 自有 review。代码没有要求 task review 的 `verdict=ACCEPT`、`json_schema_valid=true` 或指纹等于 task 指纹，存在假绿。
-3. 自授风险需要硬化（P1）。`authorizer=="user"` 加任意非空文件不能证明授权来自用户，且文件可位于仓外、未绑定 `head_sha`。当前文档“模型不能自授”的表述不成立。
-4. task scope 不唯一：同时接受 `task:<id>` 和裸 `<id>`，task ID 又不要求唯一。一个例外可能跨 review/task scope 或覆盖多个同名 task。
+`c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2`
 
-确认通过的部分：
+`py_compile`、`pre-review`、`checkpoint` 均通过，但仍有 4 条 P1：
 
-- malformed exception 的全局 fail-closed 路径成立。
-- verdict、schema、tests 和 reviewer identity 没有被 review 例外降级。
-- 指纹公式和身份隔离逻辑未改。
-- 链式与前缀指纹计算本身未发现 diff 代数漏洞；bool、越界整数会被拒绝。
-- 指纹钉定会在 head/fingerprint 改变后失效，但授权证据内容本身尚未被钉定。
-- `git diff --check` 通过，未触碰 `funding_hedging`。
+1. task own-review 的 provider 隔离可绕过。代码优先信任 `reviewer` 标签，而不是必填的 `provider`。实测 owner=`claude_glm`、provider=`zhipu_glm`，只要 reviewer 写成任意未注册字符串，own-review 即返回 `(True, None)`。
+2. evidence 可以用 Git tree 冒充文件。实测 `evidence_file="reports"`，对 `git show HEAD:reports` 输出计算匹配 digest 后，`_validate_exception_evidence()` 返回无错误；对象类型实际为 `tree`。
+3. stage diff 混入 469 行无关的 `docs/planning/adapter-watchdog-runner.md`，且未列入 `status.changed_files`。该文件在实现前已是未跟踪用户改动，随后被 bookkeeper 提交进本 stage，违反文件边界和“模板/Runner 同步只落 main”的硬门。
+4. review-2 dispatch 仍绑定 round-1 的旧 head `9414163` 和旧指纹，违反“review prompt 必须使用 status 记录范围”的硬门。本次仅因直接读取 status/handoff 才纠正到新范围。
 
-本次遵守 reviewer read-only 约束，没有修改 `50-review-2.md` 或 `status.json`。初始读取、git 检查和指纹复算成功；随后 macOS 对目标目录返回 `Operation not permitted`，因此未把计划中的补充对抗用例声称为已执行。上述 P1 均由确定可达的源码路径直接得出。
+已确认 round-1 的静默 task 例外、裸 scope/重复 ID、reason/at、模板键等修复本身成立；Fable5 批准的 `evidence_sha256 + 验证时 HEAD` 方案也可接受，不重新要求 blob@status.head_sha。
+
+Reviewer 只读执行，未修改仓库。
 
 当前 Session ID: unavailable（运行环境未暴露 provider-native Session ID）
 Session ID 来源: unavailable
-原始输出路径: unavailable（请 bookkeeper 将本回复原样保存至 `reports/agent-runs/2026-07-harness-authorized-exception-v1/50-review-2.md`）
-本地北京时间: 2026-07-17 12:23:39 CST
-下一步模型: claude_glm（由 human operator 派发）
-下一步任务: 按 verdict 中的 fix_start_prompt 修复四条 P1，补对抗测试后重新进入 review-1
+原始输出路径: unavailable（请 bookkeeper 将本回复原样覆盖保存为 `reports/agent-runs/2026-07-harness-authorized-exception-v1/50-review-2.md`）
+本地北京时间: 2026-07-17 16:31:36 CST
+下一步模型: claude_glm 修复代码；bookkeeper 修复阶段边界与 dispatch
+下一步任务: 完成四条 P1 后重新提交、复算指纹、执行 round-3 review-1，再准备绑定新指纹的 review-2 dispatch
 
 {
   "schema_version": 1,
@@ -37,94 +34,88 @@ Session ID 来源: unavailable
   "role": "final_reviewer",
   "model": "gpt-5",
   "verdict": "REWORK",
-  "diff_fingerprint": "941416345c92bf3c42556e0d9178f28e1384b4e6:5b28d88ce253d6d41f9c5841cfe51265a66e132c8fe7556d1177da4404b186f0",
+  "diff_fingerprint": "c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2",
   "reviewer_prior_involvement": "none",
   "reviewed_artifacts": [
     "AGENTS.md",
     "workflows/templates/stage-delivery.yaml review-2 section",
     "schemas/review-verdict.schema.json",
-    "agents/skills/reality-checker.md",
-    "reports/agent-runs/2026-07-harness-authorized-exception-v1/00-task.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/status.json",
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/10-design.md",
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/11-adr.md",
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/12-development-breakdown.md",
-    "reports/agent-runs/2026-07-harness-authorized-exception-v1/20-implementation.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/26-dispatch-review-2-codex.md",
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/30-review-1.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/40-fix-report.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/50-review-2.md",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/56-direction-ruling-finding3-fable5.md",
     "reports/agent-runs/2026-07-harness-authorized-exception-v1/60-test-output.txt",
-    "reports/agent-runs/2026-07-harness-authorized-exception-v1/status.json",
+    "reports/agent-runs/2026-07-harness-authorized-exception-v1/70-handoff.md",
     "scripts/validate-stage.py",
     "reports/agent-runs/_template/status.json",
     "docs/harness-design.md",
-    "git diff 00e25b4bb6e492ffbd974d1d7793ef10246fa6ad..941416345c92bf3c42556e0d9178f28e1384b4e6",
-    "independent diff-fingerprint recomputation"
+    "git diff 00e25b4bb6e492ffbd974d1d7793ef10246fa6ad..c82fc2b05299e1edc1ad972b12e12d8597cfb394",
+    "independent Python and raw-git diff-fingerprint recomputation",
+    "independent provider-label bypass and Git-tree evidence adversarial executions"
   ],
   "findings": [
     {
       "severity": "P1",
-      "title": "Task-scoped authorized exceptions can affect acceptance without being reported",
+      "title": "Task own-review provider separation trusts the reviewer label before the declared provider",
       "file": "scripts/validate-stage.py",
-      "line": 1000,
-      "evidence": "validate_task_coverage consumes valid_exceptions at lines 1000 and 1036-1040 but returns only errors. main prints only applied_exceptions returned by validate_acceptance at lines 1130 and 1150-1156. With full-fingerprint top-level reviews, task exceptions can satisfy every uncovered task while applied_exceptions remains empty, yielding an unannotated PASS.",
-      "impact": "The validator can release a stage using authorized exceptions without the mandatory PASS-with-exception disclosure, directly violating the non-silent hard gate and hiding waiver use from operators.",
-      "recommendation": "Return and aggregate the exact task exceptions relied upon, deduplicate them with review exceptions, and print every applied assertion_id@scope whenever any exception contributes to PASS."
+      "line": 1086,
+      "evidence": "review_provider_identity iterates reviewer before provider. An executed adversarial task with owner=claude_glm, review.provider=zhipu_glm, and review.reviewer=innocent-unregistered-label produced owner_identity=zhipu_glm, declared_provider_identity=zhipu_glm, chosen_review_identity=innocent-unregistered-label, and _task_own_review_covers returned (True, None). validate_tasks also returned no errors.",
+      "impact": "A task can be implemented and reviewed by the same provider while satisfying D3 coverage, producing a false-green provider-isolation result.",
+      "recommendation": "Use the explicit provider field as the authoritative provider identity. Prefer provider/selected_provider/primary_provider before reviewer globally, and reject inconsistencies when a recognized reviewer alias conflicts with the declared provider."
     },
     {
       "severity": "P1",
-      "title": "An arbitrary non-empty string is accepted as a task's own review",
+      "title": "A committed Git tree is accepted as non-empty authorization evidence",
       "file": "scripts/validate-stage.py",
-      "line": 1032,
-      "evidence": "has_own_review checks only that task.review_1.diff_fingerprint is a non-empty string. validate_tasks verifies the task boundary fingerprint and optional provider separation, but never requires the nested review verdict, schema validity, reviewer identity, evidence, or equality between the review fingerprint and the task fingerprint.",
-      "impact": "A trailing task can be marked covered by a fabricated object such as {\"review_1\":{\"diff_fingerprint\":\"x\"}}, allowing D3 to produce a false-green without a valid task review.",
-      "recommendation": "When a task review is used for coverage, require a complete schema-valid ACCEPT review, an identified cross-provider reviewer, and review.diff_fingerprint equal to the recomputed task.diff_fingerprint; reject incomplete review objects."
+      "line": 861,
+      "evidence": "_evidence_committed_blob uses git show without checking object type or mode. Executing it with evidence_file=reports returned a non-empty rendered tree listing; a matching evidence_sha256 caused _validate_exception_evidence to return an empty error list, while git cat-file -t HEAD:reports reported tree.",
+      "impact": "An exception can pass the mechanical evidence gate without any authorization-text file, defeating the committed-file and mandatory-human-verbatim assumptions.",
+      "recommendation": "Require the referenced Git object to be a regular-file blob. Check object type and ls-tree mode, rejecting trees, symlinks, and submodules before hashing exact blob bytes. Add directory and symlink adversarial tests."
     },
     {
       "severity": "P1",
-      "title": "User authorization provenance is neither authenticated nor sealed to the reviewed commit",
-      "file": "scripts/validate-stage.py",
-      "line": 886,
-      "evidence": "The validator accepts the literal authorizer value \"user\" plus any currently existing non-empty file. It does not link the record to a structured user_authorizations entry or trusted runtime receipt, does not require the evidence file to be repository-relative, and does not verify the evidence blob at status.head_sha. A write-capable model can create both the record and purported evidence.",
-      "impact": "The party seeking the waiver can self-grant it and still receive a validator PASS. Later committed or external evidence can also escape the recorded diff seal. This defeats the central human-only authorization property.",
-      "recommendation": "Harden before acceptance: require canonical structured user-authorization linkage and trusted receipt metadata, restrict evidence to repository-relative committed files, verify the evidence blob or digest at head_sha, and retain mandatory human inspection. Update documentation so it does not claim code proves human origin where it cannot."
+      "title": "The stage delivery diff contains an unrelated 469-line Adapter Watchdog Runner draft",
+      "file": "docs/planning/adapter-watchdog-runner.md",
+      "line": 1,
+      "evidence": "The file entered at commit 972fd06 and contributes 469 added lines to base..c82fc2b. The original implementation-time test log already showed it as an unrelated untracked file. It is absent from status.changed_files and outside this stage's allowed RC4 files.",
+      "impact": "The stage mixes unrelated user work into the reviewed fingerprint, violates declared file boundaries and the main-only Harness/Runner synchronization rule, and causes reviewers relying on changed_files or the four-file dispatch to miss part of the delivery.",
+      "recommendation": "Have the bookkeeper preserve commit 972fd06 separately, then remove this file from the stage's net base..head diff without losing the user's work. Recompute changed_files and the standard fingerprint."
     },
     {
       "severity": "P1",
-      "title": "Ambiguous and non-unique task scopes allow one exception to cover unintended assertions",
-      "file": "scripts/validate-stage.py",
-      "line": 1036,
-      "evidence": "Task matching accepts both task:<id> and the raw id, while normalize_tasks and validate_tasks do not require non-empty unique IDs. Thus scope review_1 also covers a task whose id is review_1, and one task:X exception covers every duplicate task named X. The match also does not explicitly re-check assertion_id.",
-      "impact": "A waiver authorized for one review or task can silently widen to another task, defeating assertion-instance scoping and causing false-green coverage.",
-      "recommendation": "Require unique non-empty task IDs, accept only canonical task:<id> task scopes, explicitly require the class-1 assertion_id at the task consumer, and reject ambiguous or duplicate scope targets."
+      "title": "The review-2 dispatch packet still targets the round-1 head and fingerprint",
+      "file": "reports/agent-runs/2026-07-harness-authorized-exception-v1/26-dispatch-review-2-codex.md",
+      "line": 9,
+      "evidence": "The packet names head_sha 941416345c92bf3c42556e0d9178f28e1384b4e6 and its round-1 fingerprint, while status and the recovery header name c82fc2b05299e1edc1ad972b12e12d8597cfb394 and f3d3fb33... for round-2.",
+      "impact": "A human executing the prepared packet would review the already-rejected round-1 diff and could record a verdict against the wrong committed state, violating a hard review gate.",
+      "recommendation": "After the next fix and review-1, prepare a fresh round-specific review-2 packet containing the exact status-recorded base, head, fingerprint, current review-1 artifact, prior findings, and Fable5 evidence policy."
     },
     {
-      "severity": "P2",
-      "title": "Authorized-exception reason and timestamp are not structurally validated",
-      "file": "scripts/validate-stage.py",
-      "line": 871,
-      "evidence": "The approved D2 record shape includes reason and at, and the negative list promises field completeness, but validate_authorized_exceptions never checks either field.",
-      "impact": "Waiver records can lack their audit rationale and time metadata while being treated as structurally valid.",
-      "recommendation": "Require a non-empty reason and a parseable ISO-8601 at value as part of fail-closed record validation."
-    },
-    {
-      "severity": "P2",
-      "title": "Template places covers_through_task on a task object even though the validator reads it only from reviews",
-      "file": "reports/agent-runs/_template/status.json",
-      "line": 47,
-      "evidence": "The template task example contains covers_through_task, but validate_task_coverage reads only review_1/review_2.covers_through_task.",
-      "impact": "Operators may populate the wrong location and incur misleading uncovered-task failures.",
-      "recommendation": "Remove the task-side key or replace it with unambiguous documentation outside the JSON data shape."
+      "severity": "P3",
+      "title": "The committed diff fails git diff --check due to a trailing blank line",
+      "file": "AGENTS.md",
+      "line": 483,
+      "evidence": "git diff --check 00e25b4b..c82fc2b reports 'new blank line at EOF' and exits 2.",
+      "impact": "Cosmetic whitespace noise only; no validator behavior changes.",
+      "recommendation": "Remove the extra EOF blank line during the bounded fix."
     }
   ],
   "required_fixes": [
-    "Aggregate and print every review- and task-scoped exception actually used to obtain PASS.",
-    "Require complete, valid, fingerprint-bound task review records before treating a task as reviewed.",
-    "Replace arbitrary evidence-file trust with structured, repository-bound, commit-sealed user-authorization evidence and correct the human-origin documentation claim.",
-    "Enforce unique task IDs and canonical assertion-specific scopes so one exception cannot cross reviews or cover multiple tasks."
+    "Make the declared review.provider authoritative for task own-review provider isolation and reject recognized reviewer/provider inconsistencies.",
+    "Require authorized-exception evidence to be a regular Git file blob; reject trees, symlinks, submodules, and other non-file objects before digest validation.",
+    "Remove docs/planning/adapter-watchdog-runner.md from the stage's net delivery diff while preserving the unrelated user work separately, then correct status.changed_files.",
+    "Prepare the next review-2 dispatch only after the new fix head and round-3 review-1 are committed, using that exact status-recorded fingerprint."
   ],
   "residual_risks": [
-    "Even after structured evidence hardening, human-origin authenticity ultimately requires a trusted runner receipt or explicit human inspection; repository text alone is not cryptographic proof.",
-    "The supplemental adversarial execution planned by review-2 was not run after macOS denied further reads of the target directory; no unexecuted test is represented as evidence.",
-    "The P2 template-key and reason/timestamp issues should be corrected during the same bounded fix if practical."
+    "Human-origin authenticity remains an explicit workflow obligation under the approved Fable5 direction; evidence_sha256 prevents silent content substitution but is not proof of human authorship.",
+    "The validator may print duplicate task errors from multiple call sites; this remains non-blocking output noise.",
+    "The current execution corrected the stale dispatch from status.json and the recovery header, but the stored packet itself remains invalid until replaced."
   ],
-  "fix_start_prompt": "Stage: 2026-07-harness-authorized-exception-v1\nReviewed fingerprint: 941416345c92bf3c42556e0d9178f28e1384b4e6:5b28d88ce253d6d41f9c5841cfe51265a66e132c8fe7556d1177da4404b186f0\nRaw review artifact: reports/agent-runs/2026-07-harness-authorized-exception-v1/50-review-2.md\nRaw verdict JSON: final JSON object in that same file.\n\nImplementer: claude_glm. Make a bounded repair only; Codex must not implement it.\n\nRequired fixes, in order:\n1. Change validate_task_coverage so it reports the exact task-scoped exceptions it actually relies on. Aggregate and deduplicate those with validate_acceptance's review exceptions, and make main print all applied assertion_id@scope values. A PASS dependent only on task exceptions must still print PASS-with-exception.\n2. A task own-review may satisfy coverage only when it is complete and valid: require identified reviewer/provider/model, verdict ACCEPT, json_schema_valid true, cross-provider separation from the task owner/implementer, and diff_fingerprint exactly equal to the recomputed task fingerprint. An arbitrary non-empty string must fail.\n3. Harden authorization provenance. Replace arbitrary current-filesystem evidence trust with a canonical structured user-authorization reference and trusted receipt metadata; require a repository-relative evidence path contained inside the repository, reject absolute/outside paths, and verify the committed evidence blob or digest at status.head_sha. Keep mandatory human verification explicit and remove the inaccurate claim that the literal alone prevents model self-authorization.\n4. Require unique non-empty task IDs. Accept only canonical task:<id> task scopes, explicitly filter task exceptions by assertion_id == review_fingerprint_trails_status, and reject raw-ID aliases, duplicate targets, cross-scope collisions, and unresolved scopes.\n5. Validate non-empty reason and parseable ISO-8601 at fields. Remove the misleading task-side covers_through_task key from reports/agent-runs/_template/status.json.\n\nAllowed delivery files: scripts/validate-stage.py, reports/agent-runs/_template/status.json, AGENTS.md, docs/harness-design.md, and this stage's implementation/fix/test evidence files as routed by the bookkeeper. Forbidden: changing compute_diff_fingerprint, weakening reviewer identity checks, implementing class-2 exceptions, RC1/RC2/RC3 work, modifying funding_hedging, merging, pushing, or broad refactoring.\n\nRequired adversarial evidence:\n- task-only exceptions produce PASS-with-exception listing every relied-upon task scope;\n- arbitrary or stale task review fingerprints fail;\n- task review REWORK or json_schema_valid=false fails;\n- a complete fingerprint-matching cross-provider task review passes;\n- missing/duplicate task IDs fail;\n- raw scope aliases and review/task collisions fail;\n- one task exception cannot cover two tasks;\n- absolute, outside-repository, post-head, empty, or unlinked evidence fails;\n- missing reason/at fails;\n- one malformed exception invalidates all exceptions;\n- prior 10 construction cases and class-2/identity negative-list cases remain unchanged.\n\nRun at minimum: python3 -m py_compile scripts/validate-stage.py; rerun the archived construction harness from reports/agent-runs/2026-07-harness-authorized-exception-v1/60-test-output.txt; run the new adversarial cases against the real validator; python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase checkpoint. After the bookkeeper commits and recomputes the standard fingerprint, run python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase pre-review. Record full commands and output in 60-test-output.txt and map every review-2 finding to its fix in 40-fix-report.md. Success requires all four P1 paths to fail closed, all applied exceptions to be visible, no fingerprint/identity regression, a clean committed stage branch, and re-entry through cross-provider review-1 before review-2.",
+  "fix_start_prompt": "Stage: 2026-07-harness-authorized-exception-v1\nRound-2 reviewed fingerprint: c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2\nRaw review artifact and final verdict JSON: reports/agent-runs/2026-07-harness-authorized-exception-v1/50-review-2.md\n\nThis is rework-2. Claude-GLM fixes only the validator/code finding scope; the bookkeeper owns unrelated-work preservation, stage bookkeeping, commits, fingerprints, and dispatch packets.\n\nCode fixes:\n1. In task own-review identity validation, use review.provider as the authoritative vendor identity instead of allowing an arbitrary reviewer label to override it. Prefer provider/selected_provider/primary_provider before reviewer in review_provider_identity, or use a task-specific strict helper. If a reviewer value is a recognized provider alias and conflicts with provider, fail closed.\n2. Harden _evidence_committed_blob/_validate_exception_evidence so evidence must be a regular committed file. Verify the Git object type and ls-tree mode before reading bytes; reject tree objects, symlinks, submodules, and non-regular modes. Preserve the Fable5-approved validation-time HEAD plus evidence_sha256 design; do not bind evidence to status.head_sha.\n\nBookkeeper fixes:\n3. Preserve the unrelated user work from commit 972fd06 separately, then ensure docs/planning/adapter-watchdog-runner.md has no net diff in the RC4 stage range. Do not silently discard it or mix it into this stage. Correct status.changed_files to equal the actual bounded delivery.\n4. After code fixes are committed, recompute head_sha and the standard diff fingerprint, run pre-review, complete a fresh cross-provider round-3 review-1, and only then create/update a round-specific review-2 dispatch packet containing that exact new head and fingerprint. The packet must include the Fable5 evidence_sha256 ruling and the round-2 findings.\n\nAllowed code files: scripts/validate-stage.py, focused validator tests/evidence, AGENTS.md or docs/harness-design.md only if behavior wording changes, and the stage fix/test reports. Forbidden: compute_diff_fingerprint changes, class-2 exceptions, identity weakening, RC1/RC2/RC3 work, funding_hedging changes, unrelated refactors, merge, push, or silent deletion of the watchdog draft.\n\nRequired adversarial evidence:\n- owner=claude_glm plus review.provider=zhipu_glm must FAIL even when review.reviewer is an arbitrary unregistered label;\n- a valid cross-provider provider field must PASS;\n- recognized reviewer/provider disagreement must FAIL;\n- evidence_file pointing to a directory such as reports with a matching digest must FAIL;\n- committed symlink and submodule evidence must FAIL;\n- a regular committed non-empty blob with a matching digest must PASS;\n- digest mismatch, absolute path, escape path, untracked file, empty blob, malformed reason/at, class-2 verdict, and identity negative-list tests must remain FAIL;\n- prior task-banner, canonical-scope, unique-ID, own-review fingerprint, template-default, and zero-regression cases must remain green.\n\nRun: python3 -m py_compile scripts/validate-stage.py; the archived construction/adversarial suite plus the new cases; python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase checkpoint. After the bookkeeper creates the new committed head, run python3 scripts/validate-stage.py 2026-07-harness-authorized-exception-v1 --phase pre-review, git diff --check <base>..<new-head>, independently recompute the fingerprint, verify git diff --quiet <base>..<new-head> -- docs/planning/adapter-watchdog-runner.md, and confirm the fresh review-2 dispatch contains the new head/fingerprint. Record finding-to-fix mapping in 40-fix-report.md and full raw output in 60-test-output.txt.",
   "next_action": "fix"
 }

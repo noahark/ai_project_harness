@@ -1,6 +1,6 @@
 {
   "stage_id": "2026-07-harness-authorized-exception-v1",
-  "status": "review_2",
+  "status": "implementing",
   "workflow": "stage-delivery",
   "stage_branch": {
     "name": "stage/2026-07-harness-authorized-exception-v1",
@@ -137,6 +137,12 @@
       "review_1": {"reviewer": "kimi", "provider": "moonshot", "verdict": "ACCEPT", "artifact": "30-review-1.md@972fd06"},
       "review_2": {"reviewer": "codex", "provider": "openai", "verdict": "REWORK", "artifact": "50-review-2.md@3ede818", "p1": 4, "p2": 2},
       "reviewed_fingerprint": "941416345c92bf3c42556e0d9178f28e1384b4e6:5b28d88ce253d6d41f9c5841cfe51265a66e132c8fe7556d1177da4404b186f0"
+    },
+    {
+      "round": 2,
+      "review_1": {"reviewer": "kimi", "provider": "moonshot", "verdict": "ACCEPT", "artifact": "30-review-1.md@<round2>"},
+      "review_2": {"reviewer": "codex", "provider": "openai", "verdict": "REWORK", "artifact": "50-review-2.md", "p1": 4, "p3": 1},
+      "reviewed_fingerprint": "c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2"
     }
   ],
   "review_1": {
@@ -167,15 +173,20 @@
       "reason": null,
       "unrelated_reviewer_unavailable_evidence": null
     },
-    "open_p0_p1": null,
-    "verdict": null,
-    "json_schema_valid": null,
-    "diff_fingerprint": null,
-    "fix_start_prompt_present": null,
-    "fix_start_prompt_source": null,
+    "open_p0_p1": [
+      "P1: task own-review isolation trusts reviewer label before declared provider (false-green self-review)",
+      "P1: committed git tree accepted as non-empty evidence (non-blob bypass)",
+      "P1 (bookkeeper): unrelated 469-line adapter-watchdog-runner.md in stage base..head diff + absent from changed_files",
+      "P1 (bookkeeper): 26-dispatch-review-2 still bound to round-1 head/fingerprint"
+    ],
+    "verdict": "REWORK",
+    "json_schema_valid": true,
+    "diff_fingerprint": "c82fc2b05299e1edc1ad972b12e12d8597cfb394:f3d3fb338fd5983b864c858826ea20748ddb49076b69ae3061b3a6467f7ce9d2",
+    "fix_start_prompt_present": true,
+    "fix_start_prompt_source": "reports/agent-runs/2026-07-harness-authorized-exception-v1/50-review-2.md (final verdict JSON)",
     "invalid_json_attempts": 0
   },
-  "rework_count": 1,
+  "rework_count": 2,
   "max_rework": 3,
   "blockers": [],
   "human_escalation": {
@@ -183,9 +194,9 @@
     "reason": null
   },
   "terminal_reason": null,
-  "next_action": "round-2 review-1 (kimi) ACCEPT (P0/P1/P2=0, P3=1 non-blocking; dual-path fingerprint recompute matches). status review_1->review_2. Operator dispatches round-2 review-2 (codex). MUST tell codex finding-3 uses evidence_sha256-in-record (Fable5 56-ruling) NOT blob@head_sha (deadlocks post-head auth) — the deviation is direction-authorized, do not re-demand blob@head_sha.",
-  "updated_at": "2026-07-17T06:45:00Z",
-  "current_phase": "rework-1-review-2-dispatch",
+  "next_action": "round-2 review-2 (codex) REWORK: 4 P1 (2 validator code: provider-label-before-provider, git-tree evidence; 2 bookkeeper: unrelated watchdog draft in stage diff, stale review-2 dispatch) + P3 whitespace. All verified real by bookkeeper. rework_count=2/3. PENDING user decision on watchdog-draft handling (relocate to main vs drop+hold) before routing rework-2. Code fixes -> claude_glm; bookkeeper owns watchdog+dispatch+changed_files.",
+  "updated_at": "2026-07-17T09:00:00Z",
+  "current_phase": "rework-2-triage",
   "model_routing": {
     "implementation_owner": "claude_glm",
     "review_1": "kimi",
